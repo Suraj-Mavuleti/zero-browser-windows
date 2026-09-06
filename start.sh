@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 zero-browser.py
+python3 zero-browser.py "$@"
