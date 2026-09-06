@@ -1,51 +1,57 @@
-import tkinter as tk
-from tkinter import scrolledtext
+import customtkinter as ctk
 import threading
 import time
 import random
 import sys
 import os
 
-class AppGUI(tk.Tk):
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+class AppGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
         script_name = os.path.basename(__file__)
         self.app_name = script_name.replace('_gui.py', '').replace('zero_', '').upper()
         
-        self.title(f"Zero {self.app_name} - V5 Enterprise Engine")
-        self.geometry("700x500")
-        self.configure(bg="#1E1E2E")
+        self.title(f"Zero {self.app_name} - V8 Enterprise Engine")
+        self.geometry("750x550")
         
-        lbl = tk.Label(self, text=f"ZERO {self.app_name} ENGINE", font=("Courier", 22, "bold"), bg="#1E1E2E", fg="#A6E3A1")
-        lbl.pack(pady=15)
+        # Header
+        self.lbl = ctk.CTkLabel(self, text=f"ZERO {self.app_name} ENGINE", font=("Courier", 24, "bold"), text_color="#A6E3A1")
+        self.lbl.pack(pady=20)
         
-        self.console = scrolledtext.ScrolledText(self, bg="#11111B", fg="#CBA6F7", font=("Courier", 11), state=tk.DISABLED)
-        self.console.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        # Console
+        self.console = ctk.CTkTextbox(self, font=("Courier", 12), text_color="#CBA6F7", fg_color="#11111B")
+        self.console.pack(fill=ctk.BOTH, expand=True, padx=20, pady=10)
+        self.console.configure(state="disabled")
         
-        btn_frame = tk.Frame(self, bg="#1E1E2E")
-        btn_frame.pack(pady=15)
+        # Control Panel
+        self.btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.btn_frame.pack(pady=20)
         
-        btn = tk.Button(btn_frame, text="INITIALIZE ENGINE", font=("Courier", 12, "bold"), bg="#89B4FA", fg="#11111B", 
-                        activebackground="#B4BEFE", bd=0, padx=15, pady=5, command=self.start_engine)
-        btn.grid(row=0, column=0, padx=10)
+        self.btn = ctk.CTkButton(self.btn_frame, text="INITIALIZE ENGINE", font=("Courier", 14, "bold"), 
+                                 command=self.start_engine, fg_color="#89B4FA", hover_color="#B4BEFE", text_color="#11111B")
+        self.btn.grid(row=0, column=0, padx=10)
         
-        btn_clear = tk.Button(btn_frame, text="CLEAR BUFFER", font=("Courier", 12, "bold"), bg="#F38BA8", fg="#11111B", 
-                              activebackground="#F9E2AF", bd=0, padx=15, pady=5, command=self.clear_console)
-        btn_clear.grid(row=0, column=1, padx=10)
+        self.btn_clear = ctk.CTkButton(self.btn_frame, text="CLEAR BUFFER", font=("Courier", 14, "bold"), 
+                                       command=self.clear_console, fg_color="#F38BA8", hover_color="#F9E2AF", text_color="#11111B")
+        self.btn_clear.grid(row=0, column=1, padx=10)
         
     def log(self, text):
-        self.console.config(state=tk.NORMAL)
-        self.console.insert(tk.END, text + "\n")
-        self.console.see(tk.END)
-        self.console.config(state=tk.DISABLED)
+        self.console.configure(state="normal")
+        self.console.insert("end", text + "
+")
+        self.console.see("end")
+        self.console.configure(state="disabled")
         
     def clear_console(self):
-        self.console.config(state=tk.NORMAL)
-        self.console.delete(1.0, tk.END)
-        self.console.config(state=tk.DISABLED)
+        self.console.configure(state="normal")
+        self.console.delete("0.0", "end")
+        self.console.configure(state="disabled")
 
     def start_engine(self):
-        self.log(f"[System] Booting {self.app_name} Native Graphical Engine...")
+        self.log(f"[V8] Booting {self.app_name} CustomTkinter Engine...")
         threading.Thread(target=self.engine_loop, daemon=True).start()
         
     def engine_loop(self):
@@ -56,7 +62,8 @@ class AppGUI(tk.Tk):
             time.sleep(random.uniform(0.05, 0.3))
             hex_val = f"{random.randint(0, 0xFFFFFFFF):08X}"
             self.log(f"[{self.app_name}] Epoch {i:04d} | Vector Address: 0x{hex_val} | Delta: {random.random():.6f}")
-        self.log(f"\n[System] {self.app_name} Engine sequence completed successfully.")
+        self.log(f"
+[V8] {self.app_name} Engine sequence completed successfully.")
 
 if __name__ == "__main__":
     app = AppGUI()
