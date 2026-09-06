@@ -40,8 +40,7 @@ class AppGUI(ctk.CTk):
         
     def log(self, text):
         self.console.configure(state="normal")
-        self.console.insert("end", text + "
-")
+        self.console.insert("end", text + "\n")
         self.console.see("end")
         self.console.configure(state="disabled")
         
@@ -62,8 +61,7 @@ class AppGUI(ctk.CTk):
             time.sleep(random.uniform(0.05, 0.3))
             hex_val = f"{random.randint(0, 0xFFFFFFFF):08X}"
             self.log(f"[{self.app_name}] Epoch {i:04d} | Vector Address: 0x{hex_val} | Delta: {random.random():.6f}")
-        self.log(f"
-[V8] {self.app_name} Engine sequence completed successfully.")
+        self.log(f"\n[V8] {self.app_name} Engine sequence completed successfully.")
 
 if __name__ == "__main__":
     app = AppGUI()
