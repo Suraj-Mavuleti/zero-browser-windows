@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zero-engine
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: zero-engine
+  template:
+    metadata:
+      labels:
+        app: zero-engine
+    spec:
+      containers:
+      - name: zero-engine
+        image: zero-engine:latest
