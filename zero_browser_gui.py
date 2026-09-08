@@ -1,63 +1,90 @@
-import customtkinter as ctk
-import threading
-import time
-import math
-import socket
-import urllib.request
-import json
-import sqlite3
-import random
+import os
+import sys
+import subprocess
+from pathlib import Path
 
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
-
-class App(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.title("Zero Browser - Web Explorer")
-        self.geometry("800x600")
-        self.configure(fg_color="#1a1a24")
-        
-        # Header
-        self.header = ctk.CTkLabel(self, text="Zero Browser - Web Explorer", font=("Helvetica", 24, "bold"), text_color="#00C7FF")
-        self.header.pack(pady=20)
-        
-        self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_frame.pack(fill=ctk.BOTH, expand=True, padx=20, pady=10)
-        
-        self.setup_ui()
-        
+def launch_gecko_browser():
+    profile_dir = Path.home() / ".gemini/antigravity/scratch/zero_browser_profile"
+    profile_dir.mkdir(parents=True, exist_ok=True)
     
-    def setup_ui(self):
-        bar = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        bar.pack(fill=ctk.X, pady=5)
+    prefs = """
+    user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+    user_pref("browser.tabs.drawInTitlebar", true);
+    user_pref("browser.startup.homepage", "about:blank");
+    user_pref("browser.theme.content-theme", 0);
+    user_pref("browser.theme.toolbar-theme", 0);
+    user_pref("browser.uidensity", 1);
+    """
+    with open(profile_dir / "user.js", "w") as f:
+        f.write(prefs)
         
-        self.url = ctk.StringVar(value="http://example.com")
-        self.url_entry = ctk.CTkEntry(bar, textvariable=self.url, font=("Courier", 14))
-        self.url_entry.pack(side=ctk.LEFT, fill=ctk.X, expand=True, padx=5)
-        
-        ctk.CTkButton(bar, text="Go", command=self.fetch).pack(side=ctk.RIGHT, padx=5)
-        
-        self.render = ctk.CTkTextbox(self.main_frame, font=("Courier", 12))
-        self.render.pack(fill=ctk.BOTH, expand=True, pady=10)
-        
-    def fetch(self):
-        self.render.delete("0.0", "end")
-        self.render.insert("0.0", "Fetching...")
-        def do_fetch():
-            try:
-                url = self.url.get()
-                if not url.startswith("http"): url = "http://" + url
-                req = urllib.request.urlopen(url)
-                html = req.read().decode('utf-8')
-                self.render.delete("0.0", "end")
-                self.render.insert("0.0", html)
-            except Exception as e:
-                self.render.delete("0.0", "end")
-                self.render.insert("0.0", f"Error: {e}")
-        threading.Thread(target=do_fetch).start()
+    chrome_dir = profile_dir / "chrome"
+    chrome_dir.mkdir(exist_ok=True)
+    
+    css = """
+    /* GOD TIER ZERO OS GECKO THEME */
+    :root {
+        --toolbar-bgcolor: #0B0C10 !important;
+        --toolbar-field-background-color: #161920 !important;
+        --toolbar-field-color: #66FCF1 !important;
+        --toolbar-field-focus-background-color: #0B0C10 !important;
+        --toolbar-field-focus-color: #66FCF1 !important;
+        --tab-selected-bgcolor: #1F2833 !important;
+        --tab-selected-textcolor: #66FCF1 !important;
+        --lwt-toolbar-field-border-color: transparent !important;
+    }
 
+    #nav-bar, #PersonalToolbar, #TabsToolbar {
+        background-color: #0B0C10 !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Style the URL Bar */
+    #urlbar-background {
+        background: #161920 !important;
+        border: 1px solid #1F2833 !important;
+        border-radius: 20px !important;
+    }
+    #urlbar[focused="true"] > #urlbar-background {
+        border: 1px solid #66FCF1 !important;
+        box-shadow: 0px 0px 10px rgba(102, 252, 241, 0.2) !important;
+    }
+    #urlbar-input {
+        color: #66FCF1 !important;
+        font-family: 'Segoe UI', monospace !important;
+        font-size: 15px !important;
+        text-align: center !important;
+    }
+
+    /* Floating Tab Design */
+    .tabbrowser-tab {
+        background-color: #0B0C10 !important;
+        border-radius: 8px !important;
+        margin: 4px !important;
+    }
+    .tabbrowser-tab[selected="true"] {
+        background-color: #1F2833 !important;
+        border: 1px solid #66FCF1 !important;
+        box-shadow: 0px 0px 10px rgba(102, 252, 241, 0.4) !important;
+    }
+    .tabbrowser-tab::after, .tabbrowser-tab::before {
+        display: none !important;
+    }
+
+    /* Clean UI Hacks */
+    #tracking-protection-icon-container, #identity-box { display: none !important; }
+    #PanelUI-button { display: none !important; }
+    #alltabs-button { display: none !important; }
+    
+    .toolbarbutton-icon { fill: #66FCF1 !important; }
+    window, dialog, page { background-color: #0B0C10 !important; }
+    """
+    with open(chrome_dir / "userChrome.css", "w") as f:
+        f.write(css)
+
+    # Launch Firedragon
+    subprocess.Popen(["firedragon", "--profile", str(profile_dir), "--new-instance"])
 
 if __name__ == "__main__":
-    app = App()
-    app.mainloop()
+    launch_gecko_browser()
