@@ -116,7 +116,7 @@ class ZeroBrowser(Gtk.Window):
         vbox.pack_start(scrolled_window, True, True, 0)
         
         # Initial Load
-        self.webview.load_uri("https://duckduckgo.com")
+        self.webview.load_uri("https://google.com")
         
     def on_url_entered(self, widget):
         url = self.url_entry.get_text()
@@ -124,7 +124,7 @@ class ZeroBrowser(Gtk.Window):
             if "." in url and " " not in url:
                 url = "https://" + url
             else:
-                url = "https://duckduckgo.com/?q=" + url.replace(" ", "+")
+                url = "https://google.com/search?q=" + url.replace(" ", "+")
         self.webview.load_uri(url)
         
     def on_load_changed(self, webview, load_event):
