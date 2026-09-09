@@ -195,7 +195,7 @@ class ZeroHackerBrowser(Gtk.Window):
             .tool-btn { background: #0A141A; border: 1px solid #003B00; border-radius: 0; margin: 0 15px; padding: 10px; color: #00FF41; font-family: monospace; transition: all 0.2s; }
             .tool-btn:hover { background: #00FF41; color: #000000; }
             .tool-status { font-size: 10px; font-weight: bold; }
-            .terminal-container { background: #000000; border: 1px solid #00FF41; box-shadow: inset 0 0 30px #FF003C; }
+            .terminal-container { background: #000000; border: 1px solid #00FF41; box-shadow: inset 0 0 14px #00FF41; }
             .terminal-text { color: #00FF41; font-family: monospace; font-size: 12px; }
             .workspace { background-color: #0A141A; }
             .nav-bar { background: #020406; padding: 15px; border-bottom: 1px solid #00FF41; }
