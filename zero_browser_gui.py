@@ -1,6 +1,7 @@
 import sys
 import gi
 import os
+import json
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.0')
 from gi.repository import Gtk, Gdk, GLib
@@ -64,6 +65,11 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_cookies.connect("toggled", self.on_cookies_toggled)
         self.toolbar.pack_start(self.btn_cookies, False, False, 0)
         
+        self.btn_storage = Gtk.ToggleButton(label="[💾 Storage]")
+        self.btn_storage.get_style_context().add_class("glass-btn")
+        self.btn_storage.connect("toggled", self.on_storage_toggled)
+        self.toolbar.pack_start(self.btn_storage, False, False, 0)
+        
         self.btn_headers = Gtk.ToggleButton(label="[📑 Headers]")
         self.btn_headers.get_style_context().add_class("glass-btn")
         self.btn_headers.connect("toggled", self.on_headers_toggled)
@@ -90,15 +96,13 @@ class ZeroDevBrowser(Gtk.Window):
         self.ua_combo.connect("changed", self.on_ua_changed)
         self.toolbar.pack_start(self.ua_combo, False, False, 0)
         
-        # ================= MAIN WORKSPACE (HPaned for Sidebar) =================
+        # ================= MAIN WORKSPACE =================
         self.hpaned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self.main_vbox.pack_start(self.hpaned, True, True, 0)
         
-        # LEFT: Payload Library Sidebar
         self.sidebar = self.build_payload_sidebar()
         self.hpaned.pack1(self.sidebar, False, False)
         
-        # RIGHT: Browser Area (VPaned for Bottom Stack)
         self.vpaned = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
         self.hpaned.pack2(self.vpaned, True, False)
         
@@ -106,7 +110,6 @@ class ZeroDevBrowser(Gtk.Window):
         self.notebook.get_style_context().add_class("glass-tabs")
         self.vpaned.pack1(self.notebook, True, False)
         
-        # Bottom Tool Stack
         self.bottom_stack = Gtk.Stack()
         self.bottom_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_UP_DOWN)
         self.vpaned.pack2(self.bottom_stack, False, False)
@@ -118,6 +121,9 @@ class ZeroDevBrowser(Gtk.Window):
         self.cookie_box = self.build_cookie_explorer()
         self.cookie_box.get_style_context().add_class("tool-box")
         self.bottom_stack.add_named(self.cookie_box, "cookies")
+        
+        self.storage_box = self.build_storage_explorer()
+        self.bottom_stack.add_named(self.storage_box, "storage")
         
         self.terminal_box = self.build_terminal_emulator()
         self.bottom_stack.add_named(self.terminal_box, "terminal")
@@ -132,7 +138,6 @@ class ZeroDevBrowser(Gtk.Window):
         self.bottom_stack.add_named(self.source_box, "source")
         
         self.bottom_stack.hide()
-        
         self.custom_headers = []
         self.new_tab("https://github.com")
 
@@ -140,7 +145,6 @@ class ZeroDevBrowser(Gtk.Window):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         box.set_size_request(260, -1)
         box.get_style_context().add_class("sidebar-box")
-        
         lbl = Gtk.Label(label="ATTACK PAYLOADS")
         lbl.get_style_context().add_class("sidebar-title")
         lbl.set_margin_top(15)
@@ -192,14 +196,12 @@ class ZeroDevBrowser(Gtk.Window):
         btn_term.set_margin_bottom(15)
         btn_term.connect("clicked", self.on_terminal_toggled)
         box.pack_end(btn_term, False, False, 10)
-        
         return box
 
     def build_terminal_emulator(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         box.set_size_request(-1, 250)
         box.get_style_context().add_class("tool-box")
-        
         lbl = Gtk.Label(label="INTEGRATED PYTHON TERMINAL")
         lbl.get_style_context().add_class("tool-title")
         lbl.set_halign(Gtk.Align.START)
@@ -220,7 +222,6 @@ class ZeroDevBrowser(Gtk.Window):
         entry.get_style_context().add_class("term-entry")
         entry.connect("activate", self.on_term_execute)
         box.pack_start(entry, False, False, 0)
-        
         return box
 
     def build_headers_panel(self):
@@ -243,12 +244,12 @@ class ZeroDevBrowser(Gtk.Window):
         controls.set_margin_end(15)
         
         self.h_key = Gtk.Entry()
-        self.h_key.set_placeholder_text("Header Name (e.g. X-Forwarded-For)")
+        self.h_key.set_placeholder_text("Header Name")
         self.h_key.get_style_context().add_class("term-entry")
         controls.pack_start(self.h_key, True, True, 0)
         
         self.h_val = Gtk.Entry()
-        self.h_val.set_placeholder_text("Header Value (e.g. 127.0.0.1)")
+        self.h_val.set_placeholder_text("Header Value")
         self.h_val.get_style_context().add_class("term-entry")
         controls.pack_start(self.h_val, True, True, 0)
         
@@ -264,7 +265,6 @@ class ZeroDevBrowser(Gtk.Window):
         self.header_list.get_style_context().add_class("glass-list")
         scroll.add(self.header_list)
         box.pack_start(scroll, True, True, 0)
-        
         return box
 
     def build_css_panel(self):
@@ -272,7 +272,7 @@ class ZeroDevBrowser(Gtk.Window):
         box.set_size_request(-1, 250)
         box.get_style_context().add_class("tool-box")
         
-        lbl = Gtk.Label(label="LIVE CSS INJECTOR (document.styleSheets)")
+        lbl = Gtk.Label(label="LIVE CSS INJECTOR")
         lbl.get_style_context().add_class("tool-title")
         lbl.set_halign(Gtk.Align.START)
         lbl.set_margin_start(15)
@@ -294,7 +294,6 @@ class ZeroDevBrowser(Gtk.Window):
         btn_inject.set_margin_bottom(10)
         btn_inject.connect("clicked", self.on_inject_css)
         box.pack_start(btn_inject, False, False, 0)
-        
         return box
 
     def build_source_viewer(self):
@@ -325,8 +324,116 @@ class ZeroDevBrowser(Gtk.Window):
         btn_refresh.set_margin_bottom(10)
         btn_refresh.connect("clicked", self.on_fetch_source)
         box.pack_start(btn_refresh, False, False, 0)
-        
         return box
+
+    def build_storage_explorer(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box.set_size_request(-1, 250)
+        box.get_style_context().add_class("tool-box")
+        
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        lbl = Gtk.Label(label="LOCAL STORAGE EXPLORER")
+        lbl.get_style_context().add_class("tool-title")
+        lbl.set_margin_top(10)
+        lbl.set_margin_bottom(10)
+        lbl.set_margin_start(15)
+        lbl.set_halign(Gtk.Align.START)
+        header.pack_start(lbl, False, False, 0)
+        
+        btn_refresh = Gtk.Button(label="Refresh Storage")
+        btn_refresh.get_style_context().add_class("glass-btn")
+        btn_refresh.set_margin_top(5)
+        btn_refresh.set_margin_bottom(5)
+        btn_refresh.set_margin_end(15)
+        btn_refresh.connect("clicked", self.refresh_storage)
+        header.pack_end(btn_refresh, False, False, 0)
+        
+        box.pack_start(header, False, False, 0)
+        
+        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        controls.set_margin_start(15)
+        controls.set_margin_end(15)
+        
+        self.ls_key = Gtk.Entry()
+        self.ls_key.set_placeholder_text("Key")
+        self.ls_key.get_style_context().add_class("term-entry")
+        controls.pack_start(self.ls_key, True, True, 0)
+        
+        self.ls_val = Gtk.Entry()
+        self.ls_val.set_placeholder_text("Value")
+        self.ls_val.get_style_context().add_class("term-entry")
+        controls.pack_start(self.ls_val, True, True, 0)
+        
+        btn_add = Gtk.Button(label="+ Set Item")
+        btn_add.get_style_context().add_class("glass-btn-success")
+        btn_add.connect("clicked", self.on_add_storage)
+        controls.pack_start(btn_add, False, False, 0)
+        
+        box.pack_start(controls, False, False, 10)
+        
+        scroll = Gtk.ScrolledWindow()
+        self.storage_list = Gtk.ListBox()
+        self.storage_list.get_style_context().add_class("glass-list")
+        scroll.add(self.storage_list)
+        box.pack_start(scroll, True, True, 0)
+        return box
+
+    def refresh_storage(self, btn=None):
+        if not hasattr(self, 'current_webview'): return
+        for child in self.storage_list.get_children():
+            self.storage_list.remove(child)
+            
+        def on_js_finish(webview, result, user_data=None):
+            try:
+                js_result = webview.run_javascript_finish(result)
+                ls_json = js_result.get_js_value().to_string()
+                ls_dict = json.loads(ls_json)
+                
+                if not ls_dict:
+                    row = Gtk.ListBoxRow()
+                    lbl = Gtk.Label(label="Local Storage is empty.")
+                    lbl.get_style_context().add_class("cookie-val")
+                    lbl.set_margin_top(10)
+                    row.add(lbl)
+                    self.storage_list.add(row)
+                else:
+                    for k, v in ls_dict.items():
+                        row = Gtk.ListBoxRow()
+                        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+                        hbox.set_margin_top(5)
+                        hbox.set_margin_bottom(5)
+                        
+                        lk = Gtk.Label(label=k)
+                        lk.get_style_context().add_class("cookie-key")
+                        lk.set_size_request(200, -1)
+                        lk.set_halign(Gtk.Align.START)
+                        lk.set_margin_start(15)
+                        
+                        lv = Gtk.Label(label=str(v))
+                        lv.get_style_context().add_class("cookie-val")
+                        lv.set_halign(Gtk.Align.START)
+                        
+                        hbox.pack_start(lk, False, False, 0)
+                        hbox.pack_start(lv, True, True, 0)
+                        row.add(hbox)
+                        self.storage_list.add(row)
+                self.storage_list.show_all()
+            except Exception as e:
+                pass
+                
+        js_code = "JSON.stringify(localStorage);"
+        self.current_webview.run_javascript(js_code, None, on_js_finish, None)
+        
+    def on_add_storage(self, btn):
+        if not hasattr(self, 'current_webview'): return
+        k = self.ls_key.get_text().strip()
+        v = self.ls_val.get_text().strip()
+        if not k or not v: return
+        js_code = f"localStorage.setItem('{k}', '{v}');"
+        self.current_webview.run_javascript(js_code, None, None, None)
+        self.ls_key.set_text("")
+        self.ls_val.set_text("")
+        self.refresh_storage()
 
     def on_fetch_source(self, btn):
         if not hasattr(self, 'current_webview'): return
@@ -335,8 +442,7 @@ class ZeroDevBrowser(Gtk.Window):
                 js_result = webview.run_javascript_finish(result)
                 html = js_result.get_js_value().to_string()
                 self.source_text.get_buffer().set_text(html)
-            except Exception as e:
-                pass
+            except Exception as e: pass
         self.current_webview.run_javascript("document.documentElement.outerHTML", None, on_js_finish, None)
 
     def on_inject_css(self, btn):
@@ -354,22 +460,18 @@ class ZeroDevBrowser(Gtk.Window):
         self.custom_headers.append((k, v))
         self.h_key.set_text("")
         self.h_val.set_text("")
-        
         row = Gtk.ListBoxRow()
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox.set_margin_top(5)
         hbox.set_margin_bottom(5)
-        
         lk = Gtk.Label(label=k)
         lk.get_style_context().add_class("cookie-key")
         lk.set_size_request(200, -1)
         lk.set_halign(Gtk.Align.START)
         lk.set_margin_start(15)
-        
         lv = Gtk.Label(label=v)
         lv.get_style_context().add_class("cookie-val")
         lv.set_halign(Gtk.Align.START)
-        
         hbox.pack_start(lk, False, False, 0)
         hbox.pack_start(lv, True, True, 0)
         row.add(hbox)
@@ -429,7 +531,6 @@ class ZeroDevBrowser(Gtk.Window):
         lbl.set_margin_start(15)
         lbl.set_halign(Gtk.Align.START)
         header.pack_start(lbl, False, False, 0)
-        
         btn_refresh = Gtk.Button(label="Refresh Cookies")
         btn_refresh.get_style_context().add_class("glass-btn")
         btn_refresh.set_margin_top(5)
@@ -437,9 +538,7 @@ class ZeroDevBrowser(Gtk.Window):
         btn_refresh.set_margin_end(15)
         btn_refresh.connect("clicked", self.refresh_cookies)
         header.pack_end(btn_refresh, False, False, 0)
-        
         box.pack_start(header, False, False, 0)
-        
         scroll = Gtk.ScrolledWindow()
         self.cookie_list = Gtk.ListBox()
         self.cookie_list.get_style_context().add_class("glass-list")
@@ -522,6 +621,7 @@ class ZeroDevBrowser(Gtk.Window):
     def _hide_all_stacks(self):
         self.btn_inspect.set_active(False)
         self.btn_cookies.set_active(False)
+        self.btn_storage.set_active(False)
         self.btn_headers.set_active(False)
         self.btn_css.set_active(False)
         self.btn_source.set_active(False)
@@ -547,6 +647,16 @@ class ZeroDevBrowser(Gtk.Window):
             self.bottom_stack.show()
             self.bottom_stack.set_visible_child_name("cookies")
             self.refresh_cookies()
+        else:
+            self.bottom_stack.hide()
+
+    def on_storage_toggled(self, btn):
+        if btn.get_active():
+            self._hide_all_stacks()
+            btn.set_active(True)
+            self.bottom_stack.show()
+            self.bottom_stack.set_visible_child_name("storage")
+            self.refresh_storage()
         else:
             self.bottom_stack.hide()
 
