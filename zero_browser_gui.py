@@ -74,6 +74,11 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_css.connect("toggled", self.on_css_toggled)
         self.toolbar.pack_start(self.btn_css, False, False, 0)
         
+        self.btn_source = Gtk.ToggleButton(label="[📄 Source]")
+        self.btn_source.get_style_context().add_class("glass-btn")
+        self.btn_source.connect("toggled", self.on_source_toggled)
+        self.toolbar.pack_start(self.btn_source, False, False, 0)
+        
         self.ua_combo = Gtk.ComboBoxText()
         self.ua_combo.get_style_context().add_class("glass-combo")
         self.ua_combo.append_text("Default UA")
@@ -123,11 +128,12 @@ class ZeroDevBrowser(Gtk.Window):
         self.css_box = self.build_css_panel()
         self.bottom_stack.add_named(self.css_box, "css")
         
+        self.source_box = self.build_source_viewer()
+        self.bottom_stack.add_named(self.source_box, "source")
+        
         self.bottom_stack.hide()
         
-        # Store custom headers list
         self.custom_headers = []
-        
         self.new_tab("https://github.com")
 
     def build_payload_sidebar(self):
@@ -291,12 +297,53 @@ class ZeroDevBrowser(Gtk.Window):
         
         return box
 
+    def build_source_viewer(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box.set_size_request(-1, 250)
+        box.get_style_context().add_class("tool-box")
+        
+        lbl = Gtk.Label(label="PAGE SOURCE VIEWER")
+        lbl.get_style_context().add_class("tool-title")
+        lbl.set_halign(Gtk.Align.START)
+        lbl.set_margin_start(15)
+        lbl.set_margin_top(10)
+        box.pack_start(lbl, False, False, 0)
+        
+        self.source_text = Gtk.TextView()
+        self.source_text.set_editable(False)
+        self.source_text.get_style_context().add_class("term-text")
+        self.source_text.get_buffer().set_text("Click 'Fetch Latest DOM Source' to view the rendered HTML structure.")
+        
+        scroll = Gtk.ScrolledWindow()
+        scroll.add(self.source_text)
+        box.pack_start(scroll, True, True, 5)
+        
+        btn_refresh = Gtk.Button(label="[⟳ Fetch Latest DOM Source]")
+        btn_refresh.get_style_context().add_class("glass-btn-success")
+        btn_refresh.set_margin_start(15)
+        btn_refresh.set_margin_end(15)
+        btn_refresh.set_margin_bottom(10)
+        btn_refresh.connect("clicked", self.on_fetch_source)
+        box.pack_start(btn_refresh, False, False, 0)
+        
+        return box
+
+    def on_fetch_source(self, btn):
+        if not hasattr(self, 'current_webview'): return
+        def on_js_finish(webview, result, user_data=None):
+            try:
+                js_result = webview.run_javascript_finish(result)
+                html = js_result.get_js_value().to_string()
+                self.source_text.get_buffer().set_text(html)
+            except Exception as e:
+                pass
+        self.current_webview.run_javascript("document.documentElement.outerHTML", None, on_js_finish, None)
+
     def on_inject_css(self, btn):
         if not hasattr(self, 'current_webview'): return
         buf = self.css_text.get_buffer()
         css = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), True)
         css = css.replace("`", "\\`")
-        
         js = f"var s = document.createElement('style'); s.innerHTML = `{css}`; document.head.appendChild(s);"
         self.current_webview.run_javascript(js, None, None, None)
 
@@ -304,7 +351,6 @@ class ZeroDevBrowser(Gtk.Window):
         k = self.h_key.get_text().strip()
         v = self.h_val.get_text().strip()
         if not k or not v: return
-        
         self.custom_headers.append((k, v))
         self.h_key.set_text("")
         self.h_val.set_text("")
@@ -335,7 +381,6 @@ class ZeroDevBrowser(Gtk.Window):
         buf = self.term_output.get_buffer()
         end_iter = buf.get_end_iter()
         buf.insert(end_iter, cmd + "\n")
-        
         try:
             result = str(eval(cmd))
             buf.insert(buf.get_end_iter(), result + "\n>>> ")
@@ -376,7 +421,6 @@ class ZeroDevBrowser(Gtk.Window):
     def build_cookie_explorer(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         box.set_size_request(-1, 250)
-        
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         lbl = Gtk.Label(label="SITE COOKIES (document.cookie)")
         lbl.get_style_context().add_class("tool-title")
@@ -407,12 +451,10 @@ class ZeroDevBrowser(Gtk.Window):
         if not hasattr(self, 'current_webview'): return
         for child in self.cookie_list.get_children():
             self.cookie_list.remove(child)
-            
         def on_js_finish(webview, result, user_data=None):
             try:
                 js_result = webview.run_javascript_finish(result)
                 cookie_str = js_result.get_js_value().to_string()
-                
                 if not cookie_str:
                     row = Gtk.ListBoxRow()
                     lbl = Gtk.Label(label="No cookies accessible via document.cookie (HttpOnly cookies are hidden).")
@@ -445,15 +487,12 @@ class ZeroDevBrowser(Gtk.Window):
                         row.add(hbox)
                         self.cookie_list.add(row)
                 self.cookie_list.show_all()
-            except Exception as e:
-                pass
-                
+            except Exception as e: pass
         self.current_webview.run_javascript("document.cookie", None, on_js_finish, None)
 
     def new_tab(self, url):
         ctx = WebKit2.WebContext.new_ephemeral()
         webview = WebKit2.WebView.new_with_context(ctx)
-        
         settings = webview.get_settings()
         settings.set_enable_developer_extras(True)
         webview.set_settings(settings)
@@ -485,6 +524,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_cookies.set_active(False)
         self.btn_headers.set_active(False)
         self.btn_css.set_active(False)
+        self.btn_source.set_active(False)
         self.bottom_stack.hide()
 
     def on_inspect_toggled(self, btn):
@@ -525,6 +565,16 @@ class ZeroDevBrowser(Gtk.Window):
             btn.set_active(True)
             self.bottom_stack.show()
             self.bottom_stack.set_visible_child_name("css")
+        else:
+            self.bottom_stack.hide()
+
+    def on_source_toggled(self, btn):
+        if btn.get_active():
+            self._hide_all_stacks()
+            btn.set_active(True)
+            self.bottom_stack.show()
+            self.bottom_stack.set_visible_child_name("source")
+            self.on_fetch_source(None)
         else:
             self.bottom_stack.hide()
 
