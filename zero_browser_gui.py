@@ -16,104 +16,28 @@ NEW_TAB_HTML = """
 <html>
 <head>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: radial-gradient(circle at center, #1a2130, #050608);
-            color: #FFFFFF;
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .clock {
-            font-size: 8rem;
-            font-weight: 200;
-            letter-spacing: -2px;
-            text-shadow: 0 10px 30px rgba(0, 229, 255, 0.4);
-            margin-bottom: 20px;
-            color: #00E5FF;
-        }
-        .greeting {
-            font-size: 2rem;
-            font-weight: 400;
-            color: #8B94A5;
-            margin-bottom: 60px;
-        }
-        .search-box {
-            width: 600px;
-            background: rgba(16, 20, 30, 0.6);
-            border: 1px solid rgba(0, 229, 255, 0.2);
-            border-radius: 30px;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            color: #FFFFFF;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-            outline: none;
-            transition: all 0.3s ease;
-        }
-        .search-box:focus {
-            border: 1px solid #00E5FF;
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
-            background: rgba(20, 25, 40, 0.8);
-        }
-        .search-box::placeholder {
-            color: #4A5568;
-        }
-        .bookmarks-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-top: 60px;
-        }
-        .bookmark-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 20px;
-            border-radius: 16px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            color: #8B94A5;
-            font-weight: bold;
-        }
-        .bookmark-card:hover {
-            background: rgba(0, 229, 255, 0.1);
-            border: 1px solid #00E5FF;
-            color: #00E5FF;
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-        }
+        body { margin: 0; padding: 0; background: radial-gradient(circle at center, #1a2130, #050608); color: #FFFFFF; font-family: 'Segoe UI', -apple-system, sans-serif; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .clock { font-size: 8rem; font-weight: 200; letter-spacing: -2px; text-shadow: 0 10px 30px rgba(0, 229, 255, 0.4); margin-bottom: 20px; color: #00E5FF; }
+        .greeting { font-size: 2rem; font-weight: 400; color: #8B94A5; margin-bottom: 60px; }
+        .search-box { width: 600px; background: rgba(16, 20, 30, 0.6); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 30px; padding: 15px 30px; font-size: 1.2rem; color: #FFFFFF; box-shadow: 0 10px 40px rgba(0,0,0,0.5); outline: none; transition: all 0.3s ease; }
+        .search-box:focus { border: 1px solid #00E5FF; box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); background: rgba(20, 25, 40, 0.8); }
+        .search-box::placeholder { color: #4A5568; }
+        .bookmarks-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 60px; }
+        .bookmark-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 16px; text-align: center; cursor: pointer; transition: all 0.2s ease; text-decoration: none; color: #8B94A5; font-weight: bold; width: 120px; }
+        .bookmark-card:hover { background: rgba(0, 229, 255, 0.1); border: 1px solid #00E5FF; color: #00E5FF; transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
     </style>
     <script>
         function updateTime() {
             const now = new Date();
-            let h = now.getHours();
-            let m = now.getMinutes();
-            let s = now.getSeconds();
-            h = h < 10 ? '0' + h : h;
-            m = m < 10 ? '0' + m : m;
-            document.getElementById('clock').innerText = h + ':' + m;
-            
-            let greeting = 'Good evening';
-            if (h < 12) greeting = 'Good morning';
-            else if (h < 18) greeting = 'Good afternoon';
-            document.getElementById('greeting').innerText = greeting + ', Studio.';
+            let h = now.getHours(), m = now.getMinutes();
+            document.getElementById('clock').innerText = (h<10?'0'+h:h) + ':' + (m<10?'0'+m:m);
+            document.getElementById('greeting').innerText = (h<12?'Good morning':h<18?'Good afternoon':'Good evening') + ', Studio.';
         }
         setInterval(updateTime, 1000);
-        
         function handleSearch(e) {
             if (e.key === 'Enter') {
-                const query = e.target.value;
-                if (query.includes('.') && !query.includes(' ')) {
-                    window.location.href = 'https://' + query;
-                } else {
-                    window.location.href = 'https://google.com/search?q=' + encodeURIComponent(query);
-                }
+                const q = e.target.value;
+                window.location.href = (q.includes('.') && !q.includes(' ')) ? 'https://' + q : 'https://google.com/search?q=' + encodeURIComponent(q);
             }
         }
     </script>
@@ -130,6 +54,27 @@ NEW_TAB_HTML = """
     </div>
 </body>
 </html>
+"""
+
+READER_MODE_JS = """
+(function() {
+    let el = document.querySelector('article') || document.querySelector('main') || document.querySelector('.content') || document.body;
+    let content = el.innerHTML;
+    let title = document.title;
+    document.head.innerHTML = `
+        <style>
+            body { background-color: #0d1117; color: #c9d1d9; font-family: 'Georgia', serif; font-size: 21px; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 60px 20px; }
+            h1 { font-family: -apple-system, sans-serif; font-size: 42px; margin-bottom: 40px; color: #00E5FF; text-align: center; }
+            h2, h3 { color: #8B94A5; font-family: -apple-system, sans-serif; margin-top: 40px; }
+            img { max-width: 100%; border-radius: 12px; margin: 20px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+            a { color: #00E5FF; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            p { margin-bottom: 25px; }
+            pre, code { background: #161b22; padding: 10px; border-radius: 8px; font-family: monospace; overflow-x: auto; }
+        </style>
+    `;
+    document.body.innerHTML = `<h1>${title}</h1>` + content;
+})();
 """
 
 class ZeroBrowser(Gtk.Window):
@@ -171,14 +116,20 @@ class ZeroBrowser(Gtk.Window):
         logo_box.pack_start(logo, True, True, 0)
         self.sidebar.pack_start(logo_box, False, False, 10)
         
-        url_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        url_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         url_box.set_margin_start(15)
         url_box.set_margin_end(15)
         self.url_entry = Gtk.Entry()
-        self.url_entry.set_placeholder_text("🔍 Search or type URL (Ctrl+L)")
+        self.url_entry.set_placeholder_text("🔍 Search...")
         self.url_entry.get_style_context().add_class("url-entry")
         self.url_entry.connect("activate", self.on_url_entered)
         url_box.pack_start(self.url_entry, True, True, 0)
+        
+        self.btn_reader = Gtk.Button(label="📖")
+        self.btn_reader.get_style_context().add_class("nav-btn")
+        self.btn_reader.connect("clicked", self.activate_reader_mode)
+        url_box.pack_start(self.btn_reader, False, False, 0)
+        
         self.sidebar.pack_start(url_box, False, False, 10)
         
         nav_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
@@ -325,6 +276,8 @@ class ZeroBrowser(Gtk.Window):
         accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.close_current_tab(None))
         key, mod = Gtk.accelerator_parse("<Primary>l")
         accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.url_entry.grab_focus())
+        key, mod = Gtk.accelerator_parse("<Primary>r")
+        accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.activate_reader_mode(None))
 
     def load_bookmarks(self):
         try:
@@ -481,6 +434,12 @@ class ZeroBrowser(Gtk.Window):
             ins = wv.get_inspector()
             if ins.is_attached(): ins.close()
             else: ins.show()
+            
+    def activate_reader_mode(self, widget):
+        wv = self.current_webview()
+        if wv and wv.get_uri() != "zero://newtab":
+            self.show_toast("📖 Activating Reader Mode...")
+            wv.run_javascript(READER_MODE_JS, None, None, None)
 
 if __name__ == "__main__":
     win = ZeroBrowser()
