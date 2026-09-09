@@ -9,6 +9,7 @@ from gi.repository import WebKit2
 
 CONFIG_DIR = os.path.expanduser("~/.config/zero-browser")
 BKMK_FILE = os.path.join(CONFIG_DIR, "bookmarks.json")
+NOTES_FILE = os.path.join(CONFIG_DIR, "quick_notes.txt")
 
 class ZeroBrowser(Gtk.Window):
     def __init__(self):
@@ -79,6 +80,41 @@ class ZeroBrowser(Gtk.Window):
         self.url_entry.get_style_context().add_class("url-bar")
         self.url_entry.connect("activate", self.on_url_entered)
         
+        # New Popover Notes Feature
+        self.btn_notes = Gtk.Button(label="📝")
+        self.btn_notes.get_style_context().add_class("nav-btn")
+        self.btn_notes.set_tooltip_text("Quick Notes")
+        self.btn_notes.connect("clicked", self.toggle_notes)
+        
+        self.notes_popover = Gtk.Popover()
+        self.notes_popover.set_relative_to(self.btn_notes)
+        self.notes_popover.set_position(Gtk.PositionType.BOTTOM)
+        
+        notes_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        notes_box.set_size_request(300, 300)
+        notes_box.set_margin_start(10)
+        notes_box.set_margin_end(10)
+        notes_box.set_margin_top(10)
+        notes_box.set_margin_bottom(10)
+        
+        lbl_n = Gtk.Label(label="Quick Scratchpad")
+        lbl_n.set_halign(Gtk.Align.START)
+        lbl_n.set_margin_bottom(10)
+        notes_box.pack_start(lbl_n, False, False, 0)
+        
+        self.notes_tv = Gtk.TextView()
+        self.notes_tv.set_wrap_mode(Gtk.WrapMode.WORD)
+        try:
+            with open(NOTES_FILE, "r") as f: self.notes_tv.get_buffer().set_text(f.read())
+        except: pass
+        self.notes_tv.get_buffer().connect("changed", self.save_notes)
+        
+        scroll_n = Gtk.ScrolledWindow()
+        scroll_n.add(self.notes_tv)
+        notes_box.pack_start(scroll_n, True, True, 0)
+        
+        self.notes_popover.add(notes_box)
+        
         btn_shield = Gtk.Button(label="🛡️")
         btn_shield.get_style_context().add_class("nav-btn")
         btn_shield.set_tooltip_text("Privacy Shield Active")
@@ -86,6 +122,7 @@ class ZeroBrowser(Gtk.Window):
         toolbar.pack_start(btn_back, False, False, 0)
         toolbar.pack_start(btn_fwd, False, False, 0)
         toolbar.pack_start(self.url_entry, True, True, 0)
+        toolbar.pack_start(self.btn_notes, False, False, 0)
         toolbar.pack_start(btn_shield, False, False, 0)
         self.workspace.pack_start(toolbar, False, False, 0)
         
@@ -95,6 +132,17 @@ class ZeroBrowser(Gtk.Window):
         
         self.tabs = {}
         self.add_tab()
+
+    def toggle_notes(self, widget):
+        if self.notes_popover.is_visible():
+            self.notes_popover.hide()
+        else:
+            self.notes_popover.show_all()
+            
+    def save_notes(self, buffer):
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(NOTES_FILE, "w") as f:
+            f.write(buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True))
 
     def add_tab(self, widget=None):
         ctx = WebKit2.WebContext.new_ephemeral()
