@@ -85,6 +85,11 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_source.connect("toggled", self.on_source_toggled)
         self.toolbar.pack_start(self.btn_source, False, False, 0)
         
+        self.btn_network = Gtk.ToggleButton(label="[🌐 Network]")
+        self.btn_network.get_style_context().add_class("glass-btn")
+        self.btn_network.connect("toggled", self.on_network_toggled)
+        self.toolbar.pack_start(self.btn_network, False, False, 0)
+        
         self.ua_combo = Gtk.ComboBoxText()
         self.ua_combo.get_style_context().add_class("glass-combo")
         self.ua_combo.append_text("Default UA")
@@ -136,6 +141,9 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.source_box = self.build_source_viewer()
         self.bottom_stack.add_named(self.source_box, "source")
+        
+        self.network_box = self.build_network_panel()
+        self.bottom_stack.add_named(self.network_box, "network")
         
         self.bottom_stack.hide()
         self.custom_headers = []
@@ -378,17 +386,84 @@ class ZeroDevBrowser(Gtk.Window):
         box.pack_start(scroll, True, True, 0)
         return box
 
+    def build_network_panel(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box.set_size_request(-1, 250)
+        box.get_style_context().add_class("tool-box")
+        
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        lbl = Gtk.Label(label="LIVE NETWORK REQUEST LOGGER")
+        lbl.get_style_context().add_class("tool-title")
+        lbl.set_margin_top(10)
+        lbl.set_margin_bottom(10)
+        lbl.set_margin_start(15)
+        lbl.set_halign(Gtk.Align.START)
+        header.pack_start(lbl, False, False, 0)
+        
+        btn_clear = Gtk.Button(label="Clear Logs")
+        btn_clear.get_style_context().add_class("glass-btn-danger")
+        btn_clear.set_margin_top(5)
+        btn_clear.set_margin_bottom(5)
+        btn_clear.set_margin_end(15)
+        btn_clear.connect("clicked", self.on_clear_network)
+        header.pack_end(btn_clear, False, False, 0)
+        
+        box.pack_start(header, False, False, 0)
+        
+        scroll = Gtk.ScrolledWindow()
+        self.network_list = Gtk.ListBox()
+        self.network_list.get_style_context().add_class("glass-list")
+        scroll.add(self.network_list)
+        box.pack_start(scroll, True, True, 0)
+        return box
+
+    def on_clear_network(self, btn):
+        for child in self.network_list.get_children():
+            self.network_list.remove(child)
+
+    def log_network_request(self, method, uri):
+        row = Gtk.ListBoxRow()
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        hbox.set_margin_top(5)
+        hbox.set_margin_bottom(5)
+        hbox.set_margin_start(15)
+        
+        lm = Gtk.Label(label=f"[{method}]")
+        if method == "POST":
+            lm.get_style_context().add_class("cookie-key")
+            lm.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1.0, 0.5, 0.0, 1.0))
+        else:
+            lm.get_style_context().add_class("cookie-key")
+            
+        lu = Gtk.Label(label=uri)
+        lu.get_style_context().add_class("cookie-val")
+        lu.set_halign(Gtk.Align.START)
+        lu.set_line_wrap(True)
+        
+        hbox.pack_start(lm, False, False, 0)
+        hbox.pack_start(lu, True, True, 0)
+        row.add(hbox)
+        self.network_list.add(row)
+        self.network_list.show_all()
+
+    def on_resource_load(self, webview, resource, request):
+        uri = request.get_uri()
+        method = "GET"
+        try:
+            if hasattr(request, 'get_http_method'):
+                method = request.get_http_method() or "GET"
+        except: pass
+        self.log_network_request(method, uri)
+
     def refresh_storage(self, btn=None):
         if not hasattr(self, 'current_webview'): return
         for child in self.storage_list.get_children():
             self.storage_list.remove(child)
-            
         def on_js_finish(webview, result, user_data=None):
             try:
                 js_result = webview.run_javascript_finish(result)
                 ls_json = js_result.get_js_value().to_string()
                 ls_dict = json.loads(ls_json)
-                
                 if not ls_dict:
                     row = Gtk.ListBoxRow()
                     lbl = Gtk.Label(label="Local Storage is empty.")
@@ -402,27 +477,21 @@ class ZeroDevBrowser(Gtk.Window):
                         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
                         hbox.set_margin_top(5)
                         hbox.set_margin_bottom(5)
-                        
                         lk = Gtk.Label(label=k)
                         lk.get_style_context().add_class("cookie-key")
                         lk.set_size_request(200, -1)
                         lk.set_halign(Gtk.Align.START)
                         lk.set_margin_start(15)
-                        
                         lv = Gtk.Label(label=str(v))
                         lv.get_style_context().add_class("cookie-val")
                         lv.set_halign(Gtk.Align.START)
-                        
                         hbox.pack_start(lk, False, False, 0)
                         hbox.pack_start(lv, True, True, 0)
                         row.add(hbox)
                         self.storage_list.add(row)
                 self.storage_list.show_all()
-            except Exception as e:
-                pass
-                
-        js_code = "JSON.stringify(localStorage);"
-        self.current_webview.run_javascript(js_code, None, on_js_finish, None)
+            except Exception as e: pass
+        self.current_webview.run_javascript("JSON.stringify(localStorage);", None, on_js_finish, None)
         
     def on_add_storage(self, btn):
         if not hasattr(self, 'current_webview'): return
@@ -592,6 +661,10 @@ class ZeroDevBrowser(Gtk.Window):
     def new_tab(self, url):
         ctx = WebKit2.WebContext.new_ephemeral()
         webview = WebKit2.WebView.new_with_context(ctx)
+        
+        # Attach the resource load sniffer
+        webview.connect("resource-load-started", self.on_resource_load)
+        
         settings = webview.get_settings()
         settings.set_enable_developer_extras(True)
         webview.set_settings(settings)
@@ -625,6 +698,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_headers.set_active(False)
         self.btn_css.set_active(False)
         self.btn_source.set_active(False)
+        self.btn_network.set_active(False)
         self.bottom_stack.hide()
 
     def on_inspect_toggled(self, btn):
@@ -685,6 +759,15 @@ class ZeroDevBrowser(Gtk.Window):
             self.bottom_stack.show()
             self.bottom_stack.set_visible_child_name("source")
             self.on_fetch_source(None)
+        else:
+            self.bottom_stack.hide()
+
+    def on_network_toggled(self, btn):
+        if btn.get_active():
+            self._hide_all_stacks()
+            btn.set_active(True)
+            self.bottom_stack.show()
+            self.bottom_stack.set_visible_child_name("network")
         else:
             self.bottom_stack.hide()
 
