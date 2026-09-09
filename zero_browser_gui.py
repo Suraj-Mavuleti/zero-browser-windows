@@ -11,7 +11,6 @@ class ZeroDevBrowser(Gtk.Window):
         super().__init__(title="Zero Browser - Developer Studio")
         self.set_default_size(1400, 900)
         
-        # Transparent visual for true glassmorphism
         screen = self.get_screen()
         visual = screen.get_rgba_visual()
         if visual and screen.is_composited():
@@ -54,6 +53,12 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_inspect.connect("toggled", self.on_inspect_toggled)
         self.toolbar.pack_start(self.btn_inspect, False, False, 0)
         
+        # NEW: Cookie Explorer
+        self.btn_cookies = Gtk.ToggleButton(label="[🍪 Cookies]")
+        self.btn_cookies.get_style_context().add_class("glass-btn")
+        self.btn_cookies.connect("toggled", self.on_cookies_toggled)
+        self.toolbar.pack_start(self.btn_cookies, False, False, 0)
+        
         self.ua_combo = Gtk.ComboBoxText()
         self.ua_combo.get_style_context().add_class("glass-combo")
         self.ua_combo.append_text("Default UA")
@@ -73,13 +78,111 @@ class ZeroDevBrowser(Gtk.Window):
         self.notebook.get_style_context().add_class("glass-tabs")
         self.paned.pack1(self.notebook, True, False)
         
-        # Inspector Container mock for layout
+        # Bottom Tool Stack
+        self.bottom_stack = Gtk.Stack()
+        self.bottom_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_UP_DOWN)
+        self.paned.pack2(self.bottom_stack, False, False)
+        
         self.inspector_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.inspector_box.get_style_context().add_class("inspector-box")
-        self.paned.pack2(self.inspector_box, False, False)
-        self.inspector_box.hide()
+        self.inspector_box.get_style_context().add_class("tool-box")
+        self.bottom_stack.add_named(self.inspector_window_mock(), "inspector")
+        
+        self.cookie_box = self.build_cookie_explorer()
+        self.cookie_box.get_style_context().add_class("tool-box")
+        self.bottom_stack.add_named(self.cookie_box, "cookies")
+        
+        self.bottom_stack.hide()
         
         self.new_tab("https://github.com")
+
+    def inspector_window_mock(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        lbl = Gtk.Label(label="Native WebInspector acts externally on GTK. This is a placeholder.")
+        lbl.set_margin_top(20)
+        lbl.set_margin_bottom(20)
+        lbl.get_style_context().add_class("tab-label")
+        box.pack_start(lbl, False, False, 0)
+        return box
+
+    def build_cookie_explorer(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box.set_size_request(-1, 250)
+        
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        lbl = Gtk.Label(label="SITE COOKIES (document.cookie)")
+        lbl.get_style_context().add_class("tool-title")
+        lbl.set_margin_top(10)
+        lbl.set_margin_bottom(10)
+        lbl.set_margin_start(15)
+        lbl.set_halign(Gtk.Align.START)
+        header.pack_start(lbl, False, False, 0)
+        
+        btn_refresh = Gtk.Button(label="Refresh Cookies")
+        btn_refresh.get_style_context().add_class("glass-btn")
+        btn_refresh.set_margin_top(5)
+        btn_refresh.set_margin_bottom(5)
+        btn_refresh.set_margin_end(15)
+        btn_refresh.connect("clicked", self.refresh_cookies)
+        header.pack_end(btn_refresh, False, False, 0)
+        
+        box.pack_start(header, False, False, 0)
+        
+        scroll = Gtk.ScrolledWindow()
+        self.cookie_list = Gtk.ListBox()
+        self.cookie_list.get_style_context().add_class("glass-list")
+        scroll.add(self.cookie_list)
+        box.pack_start(scroll, True, True, 0)
+        return box
+
+    def refresh_cookies(self, btn=None):
+        if not hasattr(self, 'current_webview'): return
+        
+        # Clear list
+        for child in self.cookie_list.get_children():
+            self.cookie_list.remove(child)
+            
+        def on_js_finish(webview, result, user_data=None):
+            try:
+                js_result = webview.run_javascript_finish(result)
+                cookie_str = js_result.get_js_value().to_string()
+                
+                if not cookie_str:
+                    row = Gtk.ListBoxRow()
+                    lbl = Gtk.Label(label="No cookies accessible via document.cookie (HttpOnly cookies are hidden).")
+                    lbl.get_style_context().add_class("cookie-val")
+                    lbl.set_margin_top(10)
+                    row.add(lbl)
+                    self.cookie_list.add(row)
+                else:
+                    cookies = cookie_str.split(";")
+                    for c in cookies:
+                        if "=" not in c: continue
+                        k, v = c.split("=", 1)
+                        row = Gtk.ListBoxRow()
+                        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+                        hbox.set_margin_top(5)
+                        hbox.set_margin_bottom(5)
+                        
+                        lk = Gtk.Label(label=k.strip())
+                        lk.get_style_context().add_class("cookie-key")
+                        lk.set_size_request(200, -1)
+                        lk.set_halign(Gtk.Align.START)
+                        lk.set_margin_start(15)
+                        
+                        lv = Gtk.Label(label=v.strip())
+                        lv.get_style_context().add_class("cookie-val")
+                        lv.set_halign(Gtk.Align.START)
+                        
+                        hbox.pack_start(lk, False, False, 0)
+                        hbox.pack_start(lv, True, True, 0)
+                        row.add(hbox)
+                        self.cookie_list.add(row)
+                        
+                self.cookie_list.show_all()
+            except Exception as e:
+                print("JS execution failed:", e)
+                
+        self.current_webview.run_javascript("document.cookie", None, on_js_finish, None)
 
     def new_tab(self, url):
         ctx = WebKit2.WebContext.new_ephemeral()
@@ -115,9 +218,22 @@ class ZeroDevBrowser(Gtk.Window):
         if not hasattr(self, 'current_webview'): return
         inspector = self.current_webview.get_inspector()
         if btn.get_active():
+            self.btn_cookies.set_active(False)
             inspector.show()
+            self.bottom_stack.show()
+            self.bottom_stack.set_visible_child_name("inspector")
         else:
             inspector.close()
+            self.bottom_stack.hide()
+            
+    def on_cookies_toggled(self, btn):
+        if btn.get_active():
+            self.btn_inspect.set_active(False)
+            self.bottom_stack.show()
+            self.bottom_stack.set_visible_child_name("cookies")
+            self.refresh_cookies()
+        else:
+            self.bottom_stack.hide()
 
     def on_ua_changed(self, combo):
         if not hasattr(self, 'current_webview'): return
@@ -151,7 +267,11 @@ class ZeroDevBrowser(Gtk.Window):
             .glass-combo { background: rgba(255, 255, 255, 0.05); color: #00FFCC; border-radius: 8px; font-family: monospace; padding: 5px; }
             .glass-tabs { background: rgba(10, 15, 20, 0.7); }
             .tab-label { color: #A0AAB5; font-family: sans-serif; font-weight: bold; font-size: 13px; padding: 5px 15px; }
-            .inspector-box { background: #111111; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+            .tool-box { background: #111111; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+            .tool-title { color: #00FFCC; font-family: monospace; font-weight: bold; letter-spacing: 2px; font-size: 14px; }
+            .glass-list { background: transparent; }
+            .cookie-key { color: #FFFFFF; font-family: monospace; font-weight: bold; }
+            .cookie-val { color: #A0AAB5; font-family: monospace; }
         '''
         provider = Gtk.CssProvider()
         provider.load_from_data(css)
