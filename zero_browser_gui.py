@@ -51,21 +51,18 @@ class ZeroBrowser(Gtk.Window):
         self.btn_zoom_in = Gtk.Button(label="🔎+")
         self.btn_zoom_out = Gtk.Button(label="🔎-")
         self.btn_dev = Gtk.Button(label="💻 Dev")
-        self.btn_panic = Gtk.Button(label="🛑 Panic Wipe")
         
         self.btn_new_tab.connect("clicked", lambda x: self.new_tab("https://google.com"))
         self.btn_close_tab.connect("clicked", self.close_current_tab)
         self.btn_zoom_in.connect("clicked", self.zoom_in)
         self.btn_zoom_out.connect("clicked", self.zoom_out)
         self.btn_dev.connect("clicked", self.toggle_inspector)
-        self.btn_panic.connect("clicked", self.panic_wipe)
         
         tools_box.pack_start(self.btn_new_tab, False, False, 0)
         tools_box.pack_start(self.btn_close_tab, False, False, 0)
         tools_box.pack_start(self.btn_zoom_in, False, False, 0)
         tools_box.pack_start(self.btn_zoom_out, False, False, 0)
         tools_box.pack_start(self.btn_dev, False, False, 0)
-        tools_box.pack_start(self.btn_panic, False, False, 0)
         self.header.pack_end(tools_box)
         
         # Tabs System
@@ -231,14 +228,6 @@ class ZeroBrowser(Gtk.Window):
             ins = wv.get_inspector()
             if ins.is_attached(): ins.close()
             else: ins.show()
-                
-    def panic_wipe(self, widget):
-        self.context.clear_cache()
-        for i in range(self.notebook.get_n_pages()-1, -1, -1):
-            self.notebook.remove_page(i)
-        self.url_entry.set_text("")
-        self.new_tab("https://duckduckgo.com")
-        self.header.props.subtitle = "WIPE SUCCESSFUL - MEMORY CLEARED"
 
 if __name__ == "__main__":
     win = ZeroBrowser()
