@@ -63,6 +63,17 @@ class ZeroHackerBrowser(Gtk.Window):
                 btn.connect("clicked", self.toggle_cookie_editor)
             self.sidebar.pack_start(btn, False, False, 5)
             
+        
+        btn_4 = Gtk.Button()
+        btn_4.get_style_context().add_class("tool-btn")
+        box_4 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        box_4.pack_start(Gtk.Label(label="🔥 User-Agent Switcher Interface"), True, True, 0)
+        s_lbl_4 = Gtk.Label(label="ONLINE")
+        s_lbl_4.get_style_context().add_class("tool-status")
+        box_4.pack_end(s_lbl_4, False, False, 0)
+        btn_4.add(box_4)
+        self.sidebar.pack_start(btn_4, False, False, 5)
+    
         self.sidebar.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 15)
         
         term_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
