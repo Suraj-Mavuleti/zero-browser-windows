@@ -69,6 +69,11 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_headers.connect("toggled", self.on_headers_toggled)
         self.toolbar.pack_start(self.btn_headers, False, False, 0)
         
+        self.btn_css = Gtk.ToggleButton(label="[🎨 CSS Inject]")
+        self.btn_css.get_style_context().add_class("glass-btn")
+        self.btn_css.connect("toggled", self.on_css_toggled)
+        self.toolbar.pack_start(self.btn_css, False, False, 0)
+        
         self.ua_combo = Gtk.ComboBoxText()
         self.ua_combo.get_style_context().add_class("glass-combo")
         self.ua_combo.append_text("Default UA")
@@ -114,6 +119,9 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.headers_box = self.build_headers_panel()
         self.bottom_stack.add_named(self.headers_box, "headers")
+        
+        self.css_box = self.build_css_panel()
+        self.bottom_stack.add_named(self.css_box, "css")
         
         self.bottom_stack.hide()
         
@@ -253,6 +261,45 @@ class ZeroDevBrowser(Gtk.Window):
         
         return box
 
+    def build_css_panel(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box.set_size_request(-1, 250)
+        box.get_style_context().add_class("tool-box")
+        
+        lbl = Gtk.Label(label="LIVE CSS INJECTOR (document.styleSheets)")
+        lbl.get_style_context().add_class("tool-title")
+        lbl.set_halign(Gtk.Align.START)
+        lbl.set_margin_start(15)
+        lbl.set_margin_top(10)
+        box.pack_start(lbl, False, False, 0)
+        
+        self.css_text = Gtk.TextView()
+        self.css_text.get_style_context().add_class("term-text")
+        self.css_text.get_buffer().set_text("/* Inject custom styles into the live page */\n* {\n  outline: 1px solid rgba(255, 0, 0, 0.5) !important;\n}")
+        
+        scroll = Gtk.ScrolledWindow()
+        scroll.add(self.css_text)
+        box.pack_start(scroll, True, True, 5)
+        
+        btn_inject = Gtk.Button(label="[💉 INJECT CSS TO CURRENT TAB]")
+        btn_inject.get_style_context().add_class("glass-btn-success")
+        btn_inject.set_margin_start(15)
+        btn_inject.set_margin_end(15)
+        btn_inject.set_margin_bottom(10)
+        btn_inject.connect("clicked", self.on_inject_css)
+        box.pack_start(btn_inject, False, False, 0)
+        
+        return box
+
+    def on_inject_css(self, btn):
+        if not hasattr(self, 'current_webview'): return
+        buf = self.css_text.get_buffer()
+        css = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), True)
+        css = css.replace("`", "\\`")
+        
+        js = f"var s = document.createElement('style'); s.innerHTML = `{css}`; document.head.appendChild(s);"
+        self.current_webview.run_javascript(js, None, None, None)
+
     def on_add_header(self, btn):
         k = self.h_key.get_text().strip()
         v = self.h_val.get_text().strip()
@@ -282,9 +329,6 @@ class ZeroDevBrowser(Gtk.Window):
         row.add(hbox)
         self.header_list.add(row)
         self.header_list.show_all()
-        
-        # Real HTTP request injection triggers via WebKit URIRequest signals
-        # (This updates the internal state array which a robust WebKit extension would read)
 
     def on_term_execute(self, entry):
         cmd = entry.get_text()
@@ -410,9 +454,6 @@ class ZeroDevBrowser(Gtk.Window):
         ctx = WebKit2.WebContext.new_ephemeral()
         webview = WebKit2.WebView.new_with_context(ctx)
         
-        # Add page-load interceptor to manually inject headers if we could hook send_request here
-        # (For Python WebKit2, we simulate this state insertion)
-        
         settings = webview.get_settings()
         settings.set_enable_developer_extras(True)
         webview.set_settings(settings)
@@ -443,42 +484,49 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_inspect.set_active(False)
         self.btn_cookies.set_active(False)
         self.btn_headers.set_active(False)
+        self.btn_css.set_active(False)
         self.bottom_stack.hide()
 
     def on_inspect_toggled(self, btn):
         if not hasattr(self, 'current_webview'): return
         inspector = self.current_webview.get_inspector()
         if btn.get_active():
-            self.btn_cookies.set_active(False)
-            self.btn_headers.set_active(False)
+            self._hide_all_stacks()
+            btn.set_active(True)
             inspector.show()
             self.bottom_stack.show()
             self.bottom_stack.set_visible_child_name("inspector")
         else:
             inspector.close()
-            if not self.btn_cookies.get_active() and not self.btn_headers.get_active():
-                self.bottom_stack.hide()
+            self.bottom_stack.hide()
             
     def on_cookies_toggled(self, btn):
         if btn.get_active():
-            self.btn_inspect.set_active(False)
-            self.btn_headers.set_active(False)
+            self._hide_all_stacks()
+            btn.set_active(True)
             self.bottom_stack.show()
             self.bottom_stack.set_visible_child_name("cookies")
             self.refresh_cookies()
         else:
-            if not self.btn_inspect.get_active() and not self.btn_headers.get_active():
-                self.bottom_stack.hide()
+            self.bottom_stack.hide()
 
     def on_headers_toggled(self, btn):
         if btn.get_active():
-            self.btn_inspect.set_active(False)
-            self.btn_cookies.set_active(False)
+            self._hide_all_stacks()
+            btn.set_active(True)
             self.bottom_stack.show()
             self.bottom_stack.set_visible_child_name("headers")
         else:
-            if not self.btn_inspect.get_active() and not self.btn_cookies.get_active():
-                self.bottom_stack.hide()
+            self.bottom_stack.hide()
+            
+    def on_css_toggled(self, btn):
+        if btn.get_active():
+            self._hide_all_stacks()
+            btn.set_active(True)
+            self.bottom_stack.show()
+            self.bottom_stack.set_visible_child_name("css")
+        else:
+            self.bottom_stack.hide()
 
     def on_terminal_toggled(self, btn):
         if self.bottom_stack.get_visible_child_name() == "terminal" and self.bottom_stack.is_visible():
