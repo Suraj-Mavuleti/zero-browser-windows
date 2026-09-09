@@ -4,7 +4,7 @@ import os
 import json
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
-from gi.repository import Gtk, Gdk, WebKit2, GLib
+from gi.repository import Gtk, Gdk, WebKit2, GLib, Gio
 
 BOOKMARKS_FILE = os.path.expanduser("~/.config/zero-browser/bookmarks.json")
 
@@ -27,6 +27,7 @@ class ZeroBrowser(Gtk.Window):
         self.context.set_tls_errors_policy(WebKit2.TLSErrorsPolicy.FAIL)
         self.context.get_cookie_manager().set_accept_policy(WebKit2.CookieAcceptPolicy.NO_THIRD_PARTY)
         self.context.set_sandbox_enabled(True)
+        self.context.connect("download-started", self.on_download_started)
         
         self.setup_css()
         self.setup_shortcuts()
@@ -48,7 +49,7 @@ class ZeroBrowser(Gtk.Window):
         logo_box.pack_start(logo, True, True, 0)
         self.sidebar.pack_start(logo_box, False, False, 10)
         
-        # URL & Search Bar (Command Palette Style)
+        # URL & Search Bar
         url_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         url_box.set_margin_start(15)
         url_box.set_margin_end(15)
@@ -114,25 +115,45 @@ class ZeroBrowser(Gtk.Window):
         tools_box.pack_start(self.btn_dev, True, True, 0)
         self.sidebar.pack_end(tools_box, False, False, 0)
         
-        # ================= WEBVIEW AREA =================
+        # ================= WEBVIEW AREA (OVERLAY) =================
         self.webview_container = Gtk.Box()
         self.webview_container.get_style_context().add_class("webview-container")
         main_box.pack_start(self.webview_container, True, True, 0)
         
-        # The floating 'App' window inside the browser
+        # Use Overlay for Toasts
+        self.overlay = Gtk.Overlay()
+        self.webview_container.pack_start(self.overlay, True, True, 0)
+        
         self.webview_box = Gtk.Box()
         self.webview_box.get_style_context().add_class("webview-box")
-        self.webview_container.pack_start(self.webview_box, True, True, 0)
+        self.overlay.add(self.webview_box)
         
         self.stack = Gtk.Stack()
         self.stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
         self.stack.set_transition_duration(250)
         self.webview_box.pack_start(self.stack, True, True, 0)
         
+        # Toast Notification System
+        self.toast_revealer = Gtk.Revealer()
+        self.toast_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
+        self.toast_revealer.set_halign(Gtk.Align.CENTER)
+        self.toast_revealer.set_valign(Gtk.Align.END)
+        self.toast_revealer.set_margin_bottom(30)
+        
+        self.toast_lbl = Gtk.Label()
+        self.toast_lbl.get_style_context().add_class("toast")
+        self.toast_revealer.add(self.toast_lbl)
+        self.overlay.add_overlay(self.toast_revealer)
+        
         # State tracking
         self.tab_map = {} # webview -> row
         
         self.new_tab("https://google.com")
+        
+    def show_toast(self, message):
+        self.toast_lbl.set_text(message)
+        self.toast_revealer.set_reveal_child(True)
+        GLib.timeout_add_seconds(3, lambda: self.toast_revealer.set_reveal_child(False) or False)
         
     def setup_css(self):
         css = b'''
@@ -192,9 +213,7 @@ class ZeroBrowser(Gtk.Window):
                 font-weight: 900;
                 letter-spacing: 1px;
             }
-            .tabs-list {
-                background: transparent;
-            }
+            .tabs-list { background: transparent; }
             .tab-row {
                 background: transparent;
                 padding: 12px 15px;
@@ -224,9 +243,7 @@ class ZeroBrowser(Gtk.Window):
                 color: #4A5568;
                 padding: 0px 5px;
             }
-            .tab-close-btn:hover {
-                color: #FF3366;
-            }
+            .tab-close-btn:hover { color: #FF3366; }
             .webview-container {
                 background-color: #030305;
                 padding: 12px 12px 12px 0px;
@@ -238,6 +255,14 @@ class ZeroBrowser(Gtk.Window):
                 box-shadow: 0 10px 30px rgba(0,0,0,0.8);
                 overflow: hidden;
             }
+            .toast {
+                background: rgba(0, 229, 255, 0.9);
+                color: #000000;
+                font-weight: bold;
+                padding: 10px 20px;
+                border-radius: 20px;
+                box-shadow: 0 4px 15px rgba(0,229,255,0.5);
+            }
         '''
         provider = Gtk.CssProvider()
         provider.load_from_data(css)
@@ -246,32 +271,23 @@ class ZeroBrowser(Gtk.Window):
     def setup_shortcuts(self):
         accel = Gtk.AccelGroup()
         self.add_accel_group(accel)
-        
-        # Ctrl+T (New Tab)
         key, mod = Gtk.accelerator_parse("<Primary>t")
         accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.new_tab("https://google.com"))
-        
-        # Ctrl+W (Close Tab)
         key, mod = Gtk.accelerator_parse("<Primary>w")
         accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.close_current_tab(None))
-        
-        # Ctrl+L (Focus URL bar)
         key, mod = Gtk.accelerator_parse("<Primary>l")
         accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.url_entry.grab_focus())
 
     def load_bookmarks(self):
         try:
             if os.path.exists(BOOKMARKS_FILE):
-                with open(BOOKMARKS_FILE, "r") as f:
-                    return json.load(f)
-        except Exception:
-            pass
+                with open(BOOKMARKS_FILE, "r") as f: return json.load(f)
+        except Exception: pass
         return {}
         
     def save_bookmarks(self):
         os.makedirs(os.path.dirname(BOOKMARKS_FILE), exist_ok=True)
-        with open(BOOKMARKS_FILE, "w") as f:
-            json.dump(self.bookmarks, f)
+        with open(BOOKMARKS_FILE, "w") as f: json.dump(self.bookmarks, f)
             
     def bookmark_current(self, widget):
         wv = self.current_webview()
@@ -280,13 +296,20 @@ class ZeroBrowser(Gtk.Window):
             title = wv.get_title() or url
             self.bookmarks[url] = title
             self.save_bookmarks()
-            self.btn_star.set_label("⭐ Saved!")
-            GLib.timeout_add_seconds(2, lambda: self.btn_star.set_label("⭐ Bookmark") and False)
+            self.show_toast("⭐ Bookmark Saved!")
 
+    def on_download_started(self, context, download):
+        self.show_toast(f"📥 Downloading: {download.get_request().get_uri().split('/')[-1]}")
+        # Standard GIO download destination
+        downloads_dir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOWNLOAD)
+        filename = download.get_request().get_uri().split('/')[-1] or "download"
+        dest = os.path.join(downloads_dir, filename)
+        download.set_destination("file://" + dest)
+        download.connect("finished", lambda d: self.show_toast("✅ Download Complete!"))
+        
     def new_tab(self, url):
         webview = WebKit2.WebView.new_with_context(self.context)
         
-        # Privacy settings
         settings = webview.get_settings()
         for setting in ["webgl", "media_stream", "html5_local_storage", "html5_database", "dns_prefetching", "webaudio", "plugins", "java"]:
             getattr(settings, f"set_enable_{setting}")(False)
@@ -300,18 +323,16 @@ class ZeroBrowser(Gtk.Window):
         scrolled.add(webview)
         scrolled.show_all()
         
-        # Generate unique ID for Stack
         stack_id = str(id(webview))
         self.stack.add_named(scrolled, stack_id)
         
-        # Create Custom Row
         row = Gtk.ListBoxRow()
         row.get_style_context().add_class("tab-row")
         
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         lbl = Gtk.Label(label="Loading...")
         lbl.set_halign(Gtk.Align.START)
-        lbl.set_ellipsize(3) # END
+        lbl.set_ellipsize(3)
         
         close_btn = Gtk.Button(label="✕")
         close_btn.get_style_context().add_class("tab-close-btn")
@@ -322,7 +343,6 @@ class ZeroBrowser(Gtk.Window):
         row.add(box)
         row.show_all()
         
-        # Bind row to stack ID
         row.stack_id = stack_id
         row.lbl = lbl
         self.tab_map[webview] = row
@@ -331,7 +351,7 @@ class ZeroBrowser(Gtk.Window):
         self.tabs_list.select_row(row)
         
         webview.load_uri(url)
-        return True # For accelerator
+        return True
         
     def close_tab(self, webview, row):
         scrolled = webview.get_parent()
@@ -359,13 +379,11 @@ class ZeroBrowser(Gtk.Window):
         if row:
             self.stack.set_visible_child_name(row.stack_id)
             wv = self.current_webview()
-            if wv and wv.get_uri():
-                self.url_entry.set_text(wv.get_uri())
+            if wv and wv.get_uri(): self.url_entry.set_text(wv.get_uri())
                 
     def on_url_entered(self, widget):
         url = self.url_entry.get_text()
-        if url in self.bookmarks:
-            pass # Already full URL
+        if url in self.bookmarks: pass
         elif not url.startswith("http://") and not url.startswith("https://"):
             if "." in url and " " not in url: url = "https://" + url
             else: url = "https://google.com/search?q=" + url.replace(" ", "+")
