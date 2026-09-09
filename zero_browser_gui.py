@@ -6,16 +6,18 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
 from gi.repository import Gtk, Gdk, WebKit2, GLib, Gio
 
-BOOKMARKS_FILE = os.path.expanduser("~/.config/zero-browser/bookmarks.json")
+CONFIG_DIR = os.path.expanduser("~/.config/zero-browser")
+BOOKMARKS_FILE = os.path.join(CONFIG_DIR, "bookmarks.json")
+FILTER_DIR = os.path.join(CONFIG_DIR, "filters")
 
 class ZeroBrowser(Gtk.Window):
     def __init__(self):
         super().__init__(title="Zero Browser - Ultimate Studio")
         self.set_default_size(1400, 900)
         
+        os.makedirs(CONFIG_DIR, exist_ok=True)
         self.bookmarks = self.load_bookmarks()
         
-        # Frameless native look (hide default titlebar)
         self.header = Gtk.HeaderBar()
         self.header.set_show_close_button(True)
         self.header.props.title = ""
@@ -28,6 +30,9 @@ class ZeroBrowser(Gtk.Window):
         self.context.get_cookie_manager().set_accept_policy(WebKit2.CookieAcceptPolicy.NO_THIRD_PARTY)
         self.context.set_sandbox_enabled(True)
         self.context.connect("download-started", self.on_download_started)
+        
+        # Setup Built-in Adblocker
+        self.setup_adblocker()
         
         self.setup_css()
         self.setup_shortcuts()
@@ -145,11 +150,38 @@ class ZeroBrowser(Gtk.Window):
         self.toast_revealer.add(self.toast_lbl)
         self.overlay.add_overlay(self.toast_revealer)
         
-        # State tracking
-        self.tab_map = {} # webview -> row
-        
+        self.tab_map = {}
         self.new_tab("https://google.com")
         
+    def setup_adblocker(self):
+        os.makedirs(FILTER_DIR, exist_ok=True)
+        rules = [
+            {"trigger": {"url-filter": ".*(google-analytics|doubleclick|facebook.com/tr|metrics|tracking).*"}, "action": {"type": "block"}},
+            {"trigger": {"url-filter": ".*(ads|adsystem|adserver|adtech|adsafeprotected).*"}, "action": {"type": "block"}},
+            {"trigger": {"url-filter": ".*(pixel.gif|beacon.js|hotjar).*"}, "action": {"type": "block"}}
+        ]
+        json_path = os.path.join(FILTER_DIR, "privacy_shield.json")
+        with open(json_path, "w") as f:
+            json.dump(rules, f)
+            
+        self.filter_store = WebKit2.UserContentFilterStore.new(FILTER_DIR)
+        
+        def on_compile_finished(store, result):
+            try:
+                filter_obj = store.save_finish(result)
+                self.content_manager = WebKit2.UserContentManager.new()
+                self.content_manager.add_filter(filter_obj)
+            except Exception as e:
+                print("Shield compile err:", e)
+                
+        # GTK4 uses bytes, GTK3 might need Gio.File or just byte array
+        try:
+            with open(json_path, "rb") as f:
+                data = GLib.Bytes.new(f.read())
+            self.filter_store.save("privacy_shield", data, None, on_compile_finished)
+        except Exception:
+            pass # Fallback if save fails
+
     def show_toast(self, message):
         self.toast_lbl.set_text(message)
         self.toast_revealer.set_reveal_child(True)
@@ -300,7 +332,6 @@ class ZeroBrowser(Gtk.Window):
 
     def on_download_started(self, context, download):
         self.show_toast(f"📥 Downloading: {download.get_request().get_uri().split('/')[-1]}")
-        # Standard GIO download destination
         downloads_dir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOWNLOAD)
         filename = download.get_request().get_uri().split('/')[-1] or "download"
         dest = os.path.join(downloads_dir, filename)
@@ -308,8 +339,12 @@ class ZeroBrowser(Gtk.Window):
         download.connect("finished", lambda d: self.show_toast("✅ Download Complete!"))
         
     def new_tab(self, url):
-        webview = WebKit2.WebView.new_with_context(self.context)
-        
+        # Attach adblock content manager if compiled
+        if hasattr(self, 'content_manager'):
+            webview = WebKit2.WebView.new_with_context_and_user_content_manager(self.context, self.content_manager)
+        else:
+            webview = WebKit2.WebView.new_with_context(self.context)
+            
         settings = webview.get_settings()
         for setting in ["webgl", "media_stream", "html5_local_storage", "html5_database", "dns_prefetching", "webaudio", "plugins", "java"]:
             getattr(settings, f"set_enable_{setting}")(False)
