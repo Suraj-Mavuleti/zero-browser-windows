@@ -1,13 +1,19 @@
 import sys
 import gi
+import os
+import json
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
 from gi.repository import Gtk, Gdk, WebKit2, GLib
 
+BOOKMARKS_FILE = os.path.expanduser("~/.config/zero-browser/bookmarks.json")
+
 class ZeroBrowser(Gtk.Window):
     def __init__(self):
-        super().__init__(title="Zero Browser - Premium Studio")
+        super().__init__(title="Zero Browser - Ultimate Studio")
         self.set_default_size(1400, 900)
+        
+        self.bookmarks = self.load_bookmarks()
         
         # Frameless native look (hide default titlebar)
         self.header = Gtk.HeaderBar()
@@ -23,6 +29,7 @@ class ZeroBrowser(Gtk.Window):
         self.context.set_sandbox_enabled(True)
         
         self.setup_css()
+        self.setup_shortcuts()
         
         # Main Container
         main_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -41,12 +48,12 @@ class ZeroBrowser(Gtk.Window):
         logo_box.pack_start(logo, True, True, 0)
         self.sidebar.pack_start(logo_box, False, False, 10)
         
-        # URL & Search Bar
+        # URL & Search Bar (Command Palette Style)
         url_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         url_box.set_margin_start(15)
         url_box.set_margin_end(15)
         self.url_entry = Gtk.Entry()
-        self.url_entry.set_placeholder_text("🔍 Search or type URL...")
+        self.url_entry.set_placeholder_text("🔍 Search or type URL (Ctrl+L)")
         self.url_entry.get_style_context().add_class("url-entry")
         self.url_entry.connect("activate", self.on_url_entered)
         url_box.pack_start(self.url_entry, True, True, 0)
@@ -59,7 +66,7 @@ class ZeroBrowser(Gtk.Window):
         self.btn_back = Gtk.Button(label="◀")
         self.btn_forward = Gtk.Button(label="▶")
         self.btn_reload = Gtk.Button(label="↻")
-        self.btn_new = Gtk.Button(label="➕")
+        self.btn_new = Gtk.Button(label="➕ Tab")
         
         self.btn_back.connect("clicked", self.on_back)
         self.btn_forward.connect("clicked", self.on_forward)
@@ -71,7 +78,7 @@ class ZeroBrowser(Gtk.Window):
             nav_box.pack_start(btn, True, True, 0)
         self.sidebar.pack_start(nav_box, False, False, 5)
         
-        # Spaces / Tabs Label
+        # Open Tabs Label
         lbl_spaces = Gtk.Label(label="OPEN TABS")
         lbl_spaces.get_style_context().add_class("section-label")
         lbl_spaces.set_halign(Gtk.Align.START)
@@ -89,14 +96,21 @@ class ZeroBrowser(Gtk.Window):
         scroll_sidebar.add(self.tabs_list)
         self.sidebar.pack_start(scroll_sidebar, True, True, 0)
         
-        # Bottom Tools
-        tools_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        # Bottom Tools Area (Bookmarks & DevTools)
+        tools_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         tools_box.set_margin_start(15)
         tools_box.set_margin_end(15)
         tools_box.set_margin_bottom(15)
+        
+        self.btn_star = Gtk.Button(label="⭐ Bookmark")
+        self.btn_star.get_style_context().add_class("nav-btn")
+        self.btn_star.connect("clicked", self.bookmark_current)
+        
         self.btn_dev = Gtk.Button(label="💻 DevTools")
         self.btn_dev.get_style_context().add_class("nav-btn")
         self.btn_dev.connect("clicked", self.toggle_inspector)
+        
+        tools_box.pack_start(self.btn_star, True, True, 0)
         tools_box.pack_start(self.btn_dev, True, True, 0)
         self.sidebar.pack_end(tools_box, False, False, 0)
         
@@ -147,7 +161,7 @@ class ZeroBrowser(Gtk.Window):
                 border: 1px solid #1C2333;
                 border-radius: 12px;
                 padding: 12px 15px;
-                font-size: 13px;
+                font-size: 14px;
                 box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
                 caret-color: #00E5FF;
             }
@@ -189,15 +203,20 @@ class ZeroBrowser(Gtk.Window):
                 color: #8B94A5;
                 font-weight: bold;
                 font-size: 13px;
+                border: 1px solid transparent;
             }
             .tab-row:hover {
                 background: #10141E;
                 color: #FFFFFF;
+                border: 1px solid #1C2333;
             }
             .tab-row:selected {
                 background: rgba(0, 229, 255, 0.1);
                 color: #00E5FF;
                 border-left: 3px solid #00E5FF;
+                border-top: 1px solid rgba(0,229,255,0.3);
+                border-bottom: 1px solid rgba(0,229,255,0.3);
+                border-right: 1px solid rgba(0,229,255,0.3);
             }
             .tab-close-btn {
                 background: transparent;
@@ -224,6 +243,46 @@ class ZeroBrowser(Gtk.Window):
         provider.load_from_data(css)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         
+    def setup_shortcuts(self):
+        accel = Gtk.AccelGroup()
+        self.add_accel_group(accel)
+        
+        # Ctrl+T (New Tab)
+        key, mod = Gtk.accelerator_parse("<Primary>t")
+        accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.new_tab("https://google.com"))
+        
+        # Ctrl+W (Close Tab)
+        key, mod = Gtk.accelerator_parse("<Primary>w")
+        accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.close_current_tab(None))
+        
+        # Ctrl+L (Focus URL bar)
+        key, mod = Gtk.accelerator_parse("<Primary>l")
+        accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.url_entry.grab_focus())
+
+    def load_bookmarks(self):
+        try:
+            if os.path.exists(BOOKMARKS_FILE):
+                with open(BOOKMARKS_FILE, "r") as f:
+                    return json.load(f)
+        except Exception:
+            pass
+        return {}
+        
+    def save_bookmarks(self):
+        os.makedirs(os.path.dirname(BOOKMARKS_FILE), exist_ok=True)
+        with open(BOOKMARKS_FILE, "w") as f:
+            json.dump(self.bookmarks, f)
+            
+    def bookmark_current(self, widget):
+        wv = self.current_webview()
+        if wv and wv.get_uri():
+            url = wv.get_uri()
+            title = wv.get_title() or url
+            self.bookmarks[url] = title
+            self.save_bookmarks()
+            self.btn_star.set_label("⭐ Saved!")
+            GLib.timeout_add_seconds(2, lambda: self.btn_star.set_label("⭐ Bookmark") and False)
+
     def new_tab(self, url):
         webview = WebKit2.WebView.new_with_context(self.context)
         
@@ -272,16 +331,14 @@ class ZeroBrowser(Gtk.Window):
         self.tabs_list.select_row(row)
         
         webview.load_uri(url)
+        return True # For accelerator
         
     def close_tab(self, webview, row):
-        # Remove from stack
         scrolled = webview.get_parent()
         self.stack.remove(scrolled)
-        # Remove from list
         self.tabs_list.remove(row)
         del self.tab_map[webview]
         
-        # Auto-create if empty
         if len(self.tab_map) == 0:
             self.new_tab("https://google.com")
             
@@ -290,6 +347,13 @@ class ZeroBrowser(Gtk.Window):
         if not row: return None
         scrolled = self.stack.get_child_by_name(row.stack_id)
         return scrolled.get_child() if scrolled else None
+        
+    def close_current_tab(self, widget):
+        wv = self.current_webview()
+        if wv:
+            row = self.tab_map.get(wv)
+            if row: self.close_tab(wv, row)
+        return True
         
     def on_tab_selected(self, listbox, row):
         if row:
@@ -300,7 +364,9 @@ class ZeroBrowser(Gtk.Window):
                 
     def on_url_entered(self, widget):
         url = self.url_entry.get_text()
-        if not url.startswith("http://") and not url.startswith("https://"):
+        if url in self.bookmarks:
+            pass # Already full URL
+        elif not url.startswith("http://") and not url.startswith("https://"):
             if "." in url and " " not in url: url = "https://" + url
             else: url = "https://google.com/search?q=" + url.replace(" ", "+")
         wv = self.current_webview()
