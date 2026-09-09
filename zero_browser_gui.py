@@ -8,7 +8,6 @@ from gi.repository import Gtk, Gdk, GLib
 from gi.repository import WebKit2
 
 CONFIG_DIR = os.path.expanduser("~/.config/zero-browser")
-BKMK_FILE = os.path.join(CONFIG_DIR, "bookmarks.json")
 NOTES_FILE = os.path.join(CONFIG_DIR, "quick_notes.txt")
 
 class ZeroBrowser(Gtk.Window):
@@ -80,7 +79,6 @@ class ZeroBrowser(Gtk.Window):
         self.url_entry.get_style_context().add_class("url-bar")
         self.url_entry.connect("activate", self.on_url_entered)
         
-        # New Popover Notes Feature
         self.btn_notes = Gtk.Button(label="📝")
         self.btn_notes.get_style_context().add_class("nav-btn")
         self.btn_notes.set_tooltip_text("Quick Notes")
@@ -97,11 +95,6 @@ class ZeroBrowser(Gtk.Window):
         notes_box.set_margin_top(10)
         notes_box.set_margin_bottom(10)
         
-        lbl_n = Gtk.Label(label="Quick Scratchpad")
-        lbl_n.set_halign(Gtk.Align.START)
-        lbl_n.set_margin_bottom(10)
-        notes_box.pack_start(lbl_n, False, False, 0)
-        
         self.notes_tv = Gtk.TextView()
         self.notes_tv.set_wrap_mode(Gtk.WrapMode.WORD)
         try:
@@ -112,17 +105,43 @@ class ZeroBrowser(Gtk.Window):
         scroll_n = Gtk.ScrolledWindow()
         scroll_n.add(self.notes_tv)
         notes_box.pack_start(scroll_n, True, True, 0)
-        
         self.notes_popover.add(notes_box)
+        
+        # New Extensions Feature
+        self.btn_ext = Gtk.Button(label="🧩")
+        self.btn_ext.get_style_context().add_class("nav-btn")
+        self.btn_ext.set_tooltip_text("Extensions")
+        self.btn_ext.connect("clicked", self.toggle_ext)
+        
+        self.ext_popover = Gtk.Popover()
+        self.ext_popover.set_relative_to(self.btn_ext)
+        self.ext_popover.set_position(Gtk.PositionType.BOTTOM)
+        
+        ext_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        ext_box.set_margin_start(15)
+        ext_box.set_margin_end(15)
+        ext_box.set_margin_top(15)
+        ext_box.set_margin_bottom(15)
+        
+        l_ext = Gtk.Label(label="Installed Extensions")
+        l_ext.set_halign(Gtk.Align.START)
+        l_ext.get_style_context().add_class("section-label")
+        ext_box.pack_start(l_ext, False, False, 0)
+        
+        ext_box.pack_start(Gtk.Label(label="🛡️ Zero AdBlocker (Active)"), False, False, 0)
+        ext_box.pack_start(Gtk.Label(label="🔑 Zero Passwords (Active)"), False, False, 0)
+        ext_box.pack_start(Gtk.Label(label="🌙 Dark Reader (Disabled)"), False, False, 0)
+        
+        self.ext_popover.add(ext_box)
         
         btn_shield = Gtk.Button(label="🛡️")
         btn_shield.get_style_context().add_class("nav-btn")
-        btn_shield.set_tooltip_text("Privacy Shield Active")
         
         toolbar.pack_start(btn_back, False, False, 0)
         toolbar.pack_start(btn_fwd, False, False, 0)
         toolbar.pack_start(self.url_entry, True, True, 0)
         toolbar.pack_start(self.btn_notes, False, False, 0)
+        toolbar.pack_start(self.btn_ext, False, False, 0)
         toolbar.pack_start(btn_shield, False, False, 0)
         self.workspace.pack_start(toolbar, False, False, 0)
         
@@ -134,11 +153,13 @@ class ZeroBrowser(Gtk.Window):
         self.add_tab()
 
     def toggle_notes(self, widget):
-        if self.notes_popover.is_visible():
-            self.notes_popover.hide()
-        else:
-            self.notes_popover.show_all()
+        if self.notes_popover.is_visible(): self.notes_popover.hide()
+        else: self.notes_popover.show_all()
             
+    def toggle_ext(self, widget):
+        if self.ext_popover.is_visible(): self.ext_popover.hide()
+        else: self.ext_popover.show_all()
+
     def save_notes(self, buffer):
         os.makedirs(CONFIG_DIR, exist_ok=True)
         with open(NOTES_FILE, "w") as f:
