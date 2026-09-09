@@ -1,19 +1,16 @@
 import sys
 import gi
 import os
-import json
+import random
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.0')
 from gi.repository import Gtk, Gdk, GLib
 from gi.repository import WebKit2
 
-CONFIG_DIR = os.path.expanduser("~/.config/zero-browser")
-NOTES_FILE = os.path.join(CONFIG_DIR, "quick_notes.txt")
-
-class ZeroBrowser(Gtk.Window):
+class ZeroHackerBrowser(Gtk.Window):
     def __init__(self):
-        super().__init__(title="Zero Browser - Ultimate Studio")
-        self.set_default_size(1300, 850)
+        super().__init__(title="Zero Browser - Developer Edition")
+        self.set_default_size(1600, 1000)
         
         self.header = Gtk.HeaderBar()
         self.header.set_show_close_button(True)
@@ -21,283 +18,206 @@ class ZeroBrowser(Gtk.Window):
         self.header.get_style_context().add_class("hidden-header")
         self.set_titlebar(self.header)
         
-        self.current_theme = 0
         self.setup_css()
         
         main_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.add(main_box)
         
+        # ================= LEFT SIDEBAR (Hacker Tools) =================
         self.sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.sidebar.set_size_request(260, -1)
+        self.sidebar.set_size_request(280, -1)
         self.sidebar.get_style_context().add_class("sidebar")
         main_box.pack_start(self.sidebar, False, False, 0)
         
-        logo = Gtk.Label(label="Z E R O")
-        logo.get_style_context().add_class("sidebar-logo")
-        logo.set_margin_top(20)
+        logo = Gtk.Label(label="Z E R O // D E V")
+        logo.get_style_context().add_class("logo-glitch")
+        logo.set_margin_top(25)
         logo.set_margin_bottom(20)
         self.sidebar.pack_start(logo, False, False, 0)
         
-        btn_new_tab = Gtk.Button(label="+ New Tab")
-        btn_new_tab.get_style_context().add_class("action-btn")
-        btn_new_tab.connect("clicked", self.add_tab)
-        self.sidebar.pack_start(btn_new_tab, False, False, 10)
+        # Developer Tools Panel
+        l_tools = Gtk.Label(label="ATTACK VECTOR TOOLS")
+        l_tools.get_style_context().add_class("section-label")
+        l_tools.set_halign(Gtk.Align.START)
+        l_tools.set_margin_start(20)
+        l_tools.set_margin_bottom(10)
+        self.sidebar.pack_start(l_tools, False, False, 0)
         
-        btn_theme = Gtk.Button(label="🎨 Toggle Theme")
-        btn_theme.get_style_context().add_class("nav-btn")
-        btn_theme.set_margin_start(15)
-        btn_theme.set_margin_end(15)
-        btn_theme.connect("clicked", self.toggle_theme)
-        self.sidebar.pack_start(btn_theme, False, False, 10)
+        tools = [
+            ("📡 Network Interceptor", "ACTIVE"),
+            ("🍪 Cookie Forger", "READY"),
+            ("🎭 User-Agent Spoof", "LINUX/X11"),
+            ("🛡️ Proxy Chain", "TOR ROUTED"),
+            ("🔌 Websocket Sniffer", "LISTENING")
+        ]
         
-        lbl_tabs = Gtk.Label(label="OPEN TABS")
-        lbl_tabs.get_style_context().add_class("section-label")
-        lbl_tabs.set_halign(Gtk.Align.START)
-        lbl_tabs.set_margin_start(20)
-        lbl_tabs.set_margin_top(15)
-        self.sidebar.pack_start(lbl_tabs, False, False, 10)
+        for name, status in tools:
+            btn = Gtk.Button()
+            btn.get_style_context().add_class("tool-btn")
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            box.pack_start(Gtk.Label(label=name), True, True, 0)
+            s_lbl = Gtk.Label(label=status)
+            s_lbl.get_style_context().add_class("tool-status")
+            box.pack_end(s_lbl, False, False, 0)
+            btn.add(box)
+            self.sidebar.pack_start(btn, False, False, 5)
+            
+        # Terminal Mock in Sidebar
+        self.sidebar.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 15)
         
-        self.tab_list = Gtk.ListBox()
-        self.tab_list.get_style_context().add_class("transparent-list")
-        self.tab_list.connect("row-selected", self.on_tab_switched)
-        self.sidebar.pack_start(self.tab_list, True, True, 0)
+        term_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        term_box.get_style_context().add_class("terminal-container")
+        term_box.set_margin_start(15)
+        term_box.set_margin_end(15)
+        term_box.set_margin_bottom(20)
         
+        term_lbl = Gtk.Label(label="root@zero:~# nmap -sS -p- target\\nStarting Nmap 7.93...\\nDiscovered open port 80/tcp\\nDiscovered open port 443/tcp")
+        term_lbl.get_style_context().add_class("terminal-text")
+        term_lbl.set_halign(Gtk.Align.START)
+        term_lbl.set_valign(Gtk.Align.START)
+        term_lbl.set_line_wrap(True)
+        term_box.pack_start(term_lbl, True, True, 10)
+        
+        self.sidebar.pack_end(term_box, True, True, 0)
+
+        # ================= MAIN WORKSPACE =================
         self.workspace = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.workspace.get_style_context().add_class("workspace")
         main_box.pack_start(self.workspace, True, True, 0)
         
-        toolbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        toolbar.get_style_context().add_class("toolbar")
-        
-        btn_back = Gtk.Button(label="◀")
-        btn_back.get_style_context().add_class("nav-btn")
-        btn_fwd = Gtk.Button(label="▶")
-        btn_fwd.get_style_context().add_class("nav-btn")
+        # URL Bar / Navigation
+        nav_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        nav_bar.get_style_context().add_class("nav-bar")
+        self.workspace.pack_start(nav_bar, False, False, 0)
         
         self.url_entry = Gtk.Entry()
-        self.url_entry.set_placeholder_text("Search Google or enter address...")
+        self.url_entry.set_placeholder_text("Target URI...")
         self.url_entry.get_style_context().add_class("url-bar")
         self.url_entry.connect("activate", self.on_url_entered)
+        nav_bar.pack_start(self.url_entry, True, True, 0)
         
-        self.btn_notes = Gtk.Button(label="📝")
-        self.btn_notes.get_style_context().add_class("nav-btn")
-        self.btn_notes.set_tooltip_text("Quick Notes")
-        self.btn_notes.connect("clicked", self.toggle_notes)
+        btn_exec = Gtk.Button(label="[ EXECUTE ]")
+        btn_exec.get_style_context().add_class("exec-btn")
+        btn_exec.connect("clicked", lambda w: self.on_url_entered(self.url_entry))
+        nav_bar.pack_start(btn_exec, False, False, 0)
         
-        self.notes_popover = Gtk.Popover()
-        self.notes_popover.set_relative_to(self.btn_notes)
-        self.notes_popover.set_position(Gtk.PositionType.BOTTOM)
-        
-        notes_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        notes_box.set_size_request(300, 300)
-        notes_box.set_margin_start(10)
-        notes_box.set_margin_end(10)
-        notes_box.set_margin_top(10)
-        notes_box.set_margin_bottom(10)
-        
-        self.notes_tv = Gtk.TextView()
-        self.notes_tv.set_wrap_mode(Gtk.WrapMode.WORD)
-        try:
-            with open(NOTES_FILE, "r") as f: self.notes_tv.get_buffer().set_text(f.read())
-        except: pass
-        self.notes_tv.get_buffer().connect("changed", self.save_notes)
-        
-        scroll_n = Gtk.ScrolledWindow()
-        scroll_n.add(self.notes_tv)
-        notes_box.pack_start(scroll_n, True, True, 0)
-        self.notes_popover.add(notes_box)
-        
-        # New Extensions Feature
-        self.btn_ext = Gtk.Button(label="🧩")
-        self.btn_ext.get_style_context().add_class("nav-btn")
-        self.btn_ext.set_tooltip_text("Extensions")
-        self.btn_ext.connect("clicked", self.toggle_ext)
-        
-        self.ext_popover = Gtk.Popover()
-        self.ext_popover.set_relative_to(self.btn_ext)
-        self.ext_popover.set_position(Gtk.PositionType.BOTTOM)
-        
-        ext_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        ext_box.set_margin_start(15)
-        ext_box.set_margin_end(15)
-        ext_box.set_margin_top(15)
-        ext_box.set_margin_bottom(15)
-        
-        l_ext = Gtk.Label(label="Installed Extensions")
-        l_ext.set_halign(Gtk.Align.START)
-        l_ext.get_style_context().add_class("section-label")
-        ext_box.pack_start(l_ext, False, False, 0)
-        
-        ext_box.pack_start(Gtk.Label(label="🛡️ Zero AdBlocker (Active)"), False, False, 0)
-        ext_box.pack_start(Gtk.Label(label="🔑 Zero Passwords (Active)"), False, False, 0)
-        ext_box.pack_start(Gtk.Label(label="🌙 Dark Reader (Disabled)"), False, False, 0)
-        
-        self.ext_popover.add(ext_box)
-        
-        btn_shield = Gtk.Button(label="🛡️")
-        btn_shield.get_style_context().add_class("nav-btn")
-        
-        toolbar.pack_start(btn_back, False, False, 0)
-        toolbar.pack_start(btn_fwd, False, False, 0)
-        toolbar.pack_start(self.url_entry, True, True, 0)
-        toolbar.pack_start(self.btn_notes, False, False, 0)
-        toolbar.pack_start(self.btn_ext, False, False, 0)
-        toolbar.pack_start(btn_shield, False, False, 0)
-        self.workspace.pack_start(toolbar, False, False, 0)
-        
-        self.stack = Gtk.Stack()
-        self.stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
-        self.workspace.pack_start(self.stack, True, True, 0)
-        
-        self.tabs = {}
-        self.add_tab()
-
-    def toggle_notes(self, widget):
-        if self.notes_popover.is_visible(): self.notes_popover.hide()
-        else: self.notes_popover.show_all()
-            
-    def toggle_ext(self, widget):
-        if self.ext_popover.is_visible(): self.ext_popover.hide()
-        else: self.ext_popover.show_all()
-
-    def save_notes(self, buffer):
-        os.makedirs(CONFIG_DIR, exist_ok=True)
-        with open(NOTES_FILE, "w") as f:
-            f.write(buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True))
-
-    def add_tab(self, widget=None):
+        # Web View
         ctx = WebKit2.WebContext.new_ephemeral()
-        ctx.set_sandbox_enabled(True)
-        webview = WebKit2.WebView.new_with_context(ctx)
+        self.webview = WebKit2.WebView.new_with_context(ctx)
+        self.webview.connect("notify::uri", self.on_uri_changed)
         
-        settings = webview.get_settings()
-        settings.set_enable_developer_extras(False)
-        settings.set_enable_webgl(False)
-        settings.set_enable_webrtc(False)
-        webview.set_settings(settings)
+        # Force Developer Tools to be allowed
+        settings = self.webview.get_settings()
+        settings.set_enable_developer_extras(True)
+        self.webview.set_settings(settings)
         
-        tab_id = str(id(webview))
-        self.tabs[tab_id] = webview
-        self.stack.add_named(webview, tab_id)
+        self.workspace.pack_start(self.webview, True, True, 0)
         
-        row = Gtk.ListBoxRow()
-        row.get_style_context().add_class("tab-row")
-        row.tab_id = tab_id
+        # ================= BOTTOM PANEL (Network Monitor) =================
+        net_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        net_panel.get_style_context().add_class("net-panel")
+        net_panel.set_size_request(-1, 200)
+        self.workspace.pack_end(net_panel, False, False, 0)
         
-        lbl = Gtk.Label(label="New Tab")
-        lbl.set_halign(Gtk.Align.START)
-        lbl.set_margin_start(15)
-        lbl.set_margin_top(12)
-        lbl.set_margin_bottom(12)
-        lbl.get_style_context().add_class("tab-lbl")
+        l_net = Gtk.Label(label="NETWORK TRAFFIC MONITOR")
+        l_net.get_style_context().add_class("section-label")
+        l_net.set_halign(Gtk.Align.START)
+        l_net.set_margin_start(10)
+        l_net.set_margin_top(5)
+        l_net.set_margin_bottom(5)
+        net_panel.pack_start(l_net, False, False, 0)
         
-        row.add(lbl)
-        self.tab_list.add(row)
-        self.tab_list.show_all()
+        scroll = Gtk.ScrolledWindow()
+        self.net_list = Gtk.ListBox()
+        self.net_list.get_style_context().add_class("transparent-list")
+        scroll.add(self.net_list)
+        net_panel.pack_start(scroll, True, True, 0)
         
-        webview.connect("notify::title", lambda w, p: lbl.set_text(w.get_title() or "New Tab"))
-        webview.connect("notify::uri", self.on_uri_changed)
+        # Initial Load
+        self.webview.load_uri("https://hackerone.com")
         
-        self.stack.set_visible_child(webview)
-        self.tab_list.select_row(row)
-        webview.load_uri("https://google.com")
-
-    def on_tab_switched(self, listbox, row):
-        if row:
-            webview = self.tabs[row.tab_id]
-            self.stack.set_visible_child(webview)
-            self.url_entry.set_text(webview.get_uri() or "")
+        # Start random traffic generator
+        GLib.timeout_add(1500, self.inject_mock_traffic)
 
     def on_url_entered(self, entry):
         url = entry.get_text()
-        if not url.startswith("http"):
-            if "." in url and " " not in url:
-                url = "https://" + url
-            else:
-                url = "https://www.google.com/search?q=" + url.replace(" ", "+")
-        webview = self.stack.get_visible_child()
-        if webview:
-            webview.load_uri(url)
+        if not url.startswith("http"): url = "https://" + url
+        self.webview.load_uri(url)
 
     def on_uri_changed(self, webview, param):
-        if self.stack.get_visible_child() == webview:
-            self.url_entry.set_text(webview.get_uri() or "")
-
-    def toggle_theme(self, widget):
-        self.current_theme = (self.current_theme + 1) % 3
-        self.setup_css()
+        self.url_entry.set_text(webview.get_uri() or "")
+        
+    def inject_mock_traffic(self):
+        methods = ["GET", "POST", "OPTIONS", "PUT"]
+        status = ["200 OK", "404 NOT FOUND", "403 FORBIDDEN", "500 SERVER ERROR"]
+        endpoints = ["/api/v1/users", "/auth/login", "/wp-admin", "/config.json", "/.git/HEAD"]
+        
+        m = random.choice(methods)
+        s = random.choice(status)
+        e = random.choice(endpoints)
+        
+        row = Gtk.ListBoxRow()
+        row.get_style_context().add_class("net-row")
+        
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        lbl_m = Gtk.Label(label=m)
+        lbl_m.set_size_request(60, -1)
+        lbl_m.get_style_context().add_class(f"net-{m.lower()}")
+        
+        lbl_e = Gtk.Label(label=e)
+        lbl_e.set_margin_start(10)
+        
+        lbl_s = Gtk.Label(label=s)
+        if "200" in s: lbl_s.get_style_context().add_class("net-200")
+        else: lbl_s.get_style_context().add_class("net-error")
+        
+        box.pack_start(lbl_m, False, False, 0)
+        box.pack_start(lbl_e, True, True, 0)
+        box.pack_end(lbl_s, False, False, 10)
+        
+        row.add(box)
+        self.net_list.prepend(row)
+        self.net_list.show_all()
+        
+        # Keep list small
+        if len(self.net_list.get_children()) > 20:
+            self.net_list.remove(self.net_list.get_children()[-1])
+            
+        return True # Continue timer
 
     def setup_css(self):
-        themes = [
-            # 0: Dark Glassmorphism (Default)
-            b'''
-            window { background-color: #030305; }
-            .hidden-header { background: #030305; min-height: 0px; padding: 0px; border: none; box-shadow: none; }
-            .sidebar { background-color: rgba(10, 12, 18, 0.98); border-right: 1px solid rgba(255, 255, 255, 0.05); }
-            .sidebar-logo { color: #FFFFFF; text-shadow: 0 0 15px rgba(0, 153, 255, 0.6); }
-            .action-btn { background: linear-gradient(45deg, #0099FF, #0055FF); color: #FFFFFF; }
-            .section-label { color: #4A5568; }
-            .tab-row:hover { background: rgba(255,255,255,0.05); }
-            .tab-row:selected { background: rgba(0, 153, 255, 0.1); border-left: 3px solid #0099FF; }
-            .tab-lbl { color: #c9d1d9; }
-            .toolbar { background: #080A0F; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-            .url-bar { background: #10141E; color: #FFFFFF; border: 1px solid #1C2333; }
-            .nav-btn { background: rgba(255,255,255,0.05); color: #FFFFFF; }
-            .workspace { background: #000000; }
-            ''',
-            # 1: Neon Cyberpunk
-            b'''
-            window { background-color: #0d0221; }
-            .hidden-header { background: #0d0221; min-height: 0px; padding: 0px; border: none; box-shadow: none; }
-            .sidebar { background-color: rgba(20, 2, 40, 0.98); border-right: 1px solid rgba(255, 0, 255, 0.3); }
-            .sidebar-logo { color: #00ffff; text-shadow: 0 0 20px #00ffff; }
-            .action-btn { background: linear-gradient(45deg, #ff00ff, #00ffff); color: #000000; box-shadow: 0 0 20px rgba(255,0,255,0.5); }
-            .section-label { color: #00ffff; }
-            .tab-row:hover { background: rgba(0,255,255,0.1); }
-            .tab-row:selected { background: rgba(255, 0, 255, 0.2); border-left: 3px solid #ff00ff; }
-            .tab-lbl { color: #ffffff; text-shadow: 0 0 5px #00ffff; }
-            .toolbar { background: #110022; border-bottom: 1px solid rgba(0, 255, 255, 0.3); }
-            .url-bar { background: #220044; color: #00ffff; border: 1px solid #ff00ff; box-shadow: 0 0 10px rgba(255,0,255,0.2); }
-            .nav-btn { background: rgba(0,255,255,0.1); color: #00ffff; border: 1px solid #00ffff; }
-            .workspace { background: #000000; }
-            ''',
-            # 2: Light Mac Studio
-            b'''
-            window { background-color: #f5f5f7; }
-            .hidden-header { background: #f5f5f7; min-height: 0px; padding: 0px; border: none; box-shadow: none; }
-            .sidebar { background-color: rgba(255, 255, 255, 0.95); border-right: 1px solid rgba(0, 0, 0, 0.1); }
-            .sidebar-logo { color: #1d1d1f; text-shadow: none; }
-            .action-btn { background: linear-gradient(45deg, #0066cc, #004499); color: #FFFFFF; }
-            .section-label { color: #86868b; }
-            .tab-row:hover { background: rgba(0,0,0,0.05); }
-            .tab-row:selected { background: rgba(0, 102, 204, 0.1); border-left: 3px solid #0066cc; }
-            .tab-lbl { color: #1d1d1f; }
-            .toolbar { background: #ffffff; border-bottom: 1px solid rgba(0, 0, 0, 0.1); }
-            .url-bar { background: #f5f5f7; color: #1d1d1f; border: 1px solid #d2d2d7; }
-            .nav-btn { background: rgba(0,0,0,0.05); color: #1d1d1f; }
-            .workspace { background: #ffffff; }
-            '''
-        ]
-        
-        base_css = b'''
-            .sidebar-logo { font-size: 24px; font-weight: 900; letter-spacing: 5px; }
-            .action-btn { border-radius: 12px; font-weight: bold; padding: 12px; margin: 0 15px; border: none; transition: all 0.3s; }
-            .action-btn:hover { transform: scale(1.02); }
-            .section-label { font-size: 11px; font-weight: 900; letter-spacing: 2px; }
+        css = b'''
+            window { background-color: #050A0F; }
+            .hidden-header { background: #050A0F; min-height: 0px; padding: 0px; border: none; box-shadow: none; }
+            .sidebar { background-color: #020406; border-right: 1px solid #00FF41; }
+            .logo-glitch { color: #00FF41; font-size: 22px; font-weight: 900; letter-spacing: 4px; text-shadow: 2px 0 #FF003C, -2px 0 #00E6F6; font-family: monospace; }
+            .section-label { color: #008F11; font-size: 12px; font-weight: 900; letter-spacing: 2px; font-family: monospace; }
+            .tool-btn { background: #0A141A; border: 1px solid #003B00; border-radius: 0; margin: 0 15px; padding: 10px; color: #00FF41; font-family: monospace; transition: all 0.2s; }
+            .tool-btn:hover { background: #00FF41; color: #000000; }
+            .tool-status { font-size: 10px; font-weight: bold; }
+            .terminal-container { background: #000000; border: 1px solid #00FF41; box-shadow: inset 0 0 49px #00E6F6; }
+            .terminal-text { color: #00FF41; font-family: monospace; font-size: 12px; }
+            .workspace { background-color: #0A141A; }
+            .nav-bar { background: #020406; padding: 15px; border-bottom: 1px solid #00FF41; }
+            .url-bar { background: #000000; color: #00FF41; border: 1px solid #00FF41; border-radius: 0; padding: 10px; font-family: monospace; font-size: 16px; box-shadow: 0 0 10px rgba(0,255,65,0.2); }
+            .exec-btn { background: #00FF41; color: #000000; border: none; font-weight: bold; font-family: monospace; padding: 10px 20px; border-radius: 0; }
+            .exec-btn:hover { background: #FFFFFF; }
+            .net-panel { background: #020406; border-top: 1px solid #00FF41; }
             .transparent-list { background: transparent; }
-            .tab-row { background: transparent; border-radius: 8px; margin: 2px 10px; border: 1px solid transparent; transition: all 0.2s; }
-            .tab-lbl { font-weight: bold; font-size: 14px; }
-            .toolbar { padding: 10px 20px; }
-            .url-bar { border-radius: 10px; padding: 10px; font-size: 14px; }
-            .nav-btn { border-radius: 10px; padding: 10px; font-weight: bold; transition: all 0.2s; }
+            .net-row { background: transparent; color: #00FF41; font-family: monospace; padding: 4px; border-bottom: 1px solid #003B00; }
+            .net-get { color: #00E6F6; }
+            .net-post { color: #FF003C; }
+            .net-options { color: #F6FF00; }
+            .net-put { color: #FF8A00; }
+            .net-200 { color: #00FF41; }
+            .net-error { color: #FF003C; font-weight: bold; }
         '''
-        
         provider = Gtk.CssProvider()
-        provider.load_from_data(base_css + themes[self.current_theme])
+        provider.load_from_data(css)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 if __name__ == "__main__":
-    win = ZeroBrowser()
+    win = ZeroHackerBrowser()
     win.connect("destroy", Gtk.main_quit)
     win.show_all()
     Gtk.main()
