@@ -35,7 +35,6 @@ class ZeroHackerBrowser(Gtk.Window):
         logo.set_margin_bottom(20)
         self.sidebar.pack_start(logo, False, False, 0)
         
-        # Developer Tools Panel
         l_tools = Gtk.Label(label="ATTACK VECTOR TOOLS")
         l_tools.get_style_context().add_class("section-label")
         l_tools.set_halign(Gtk.Align.START)
@@ -62,7 +61,6 @@ class ZeroHackerBrowser(Gtk.Window):
             btn.add(box)
             self.sidebar.pack_start(btn, False, False, 5)
             
-        # Terminal Mock in Sidebar
         self.sidebar.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 15)
         
         term_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -71,12 +69,12 @@ class ZeroHackerBrowser(Gtk.Window):
         term_box.set_margin_end(15)
         term_box.set_margin_bottom(20)
         
-        term_lbl = Gtk.Label(label="root@zero:~# nmap -sS -p- target\\nStarting Nmap 7.93...\\nDiscovered open port 80/tcp\\nDiscovered open port 443/tcp")
-        term_lbl.get_style_context().add_class("terminal-text")
-        term_lbl.set_halign(Gtk.Align.START)
-        term_lbl.set_valign(Gtk.Align.START)
-        term_lbl.set_line_wrap(True)
-        term_box.pack_start(term_lbl, True, True, 10)
+        self.term_lbl = Gtk.Label(label="root@zero:~# Initialize exploit framework...\nFramework loaded.\nWaiting for commands...")
+        self.term_lbl.get_style_context().add_class("terminal-text")
+        self.term_lbl.set_halign(Gtk.Align.START)
+        self.term_lbl.set_valign(Gtk.Align.START)
+        self.term_lbl.set_line_wrap(True)
+        term_box.pack_start(self.term_lbl, True, True, 10)
         
         self.sidebar.pack_end(term_box, True, True, 0)
 
@@ -101,23 +99,58 @@ class ZeroHackerBrowser(Gtk.Window):
         btn_exec.connect("clicked", lambda w: self.on_url_entered(self.url_entry))
         nav_bar.pack_start(btn_exec, False, False, 0)
         
+        # NEW: Developer Tools Actions
+        btn_dev = Gtk.Button(label="[ INSPECT ]")
+        btn_dev.get_style_context().add_class("exec-btn")
+        btn_dev.connect("clicked", self.toggle_inspector)
+        nav_bar.pack_start(btn_dev, False, False, 0)
+        
+        # Split workspace for webview and inspector
+        self.paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
+        self.workspace.pack_start(self.paned, True, True, 0)
+        
         # Web View
         ctx = WebKit2.WebContext.new_ephemeral()
         self.webview = WebKit2.WebView.new_with_context(ctx)
         self.webview.connect("notify::uri", self.on_uri_changed)
         
-        # Force Developer Tools to be allowed
         settings = self.webview.get_settings()
         settings.set_enable_developer_extras(True)
         self.webview.set_settings(settings)
         
-        self.workspace.pack_start(self.webview, True, True, 0)
+        self.paned.pack1(self.webview, True, False)
+        
+        # NEW: Native Web Inspector View
+        self.inspector_window = Gtk.ScrolledWindow()
+        self.inspector_window.set_size_request(400, -1)
+        self.paned.pack2(self.inspector_window, False, False)
+        self.inspector_window.hide()
+        
+        self.inspector = self.webview.get_inspector()
         
         # ================= BOTTOM PANEL (Network Monitor) =================
+        self.bot_paned = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
+        self.workspace.pack_end(self.bot_paned, False, False, 0)
+        
         net_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         net_panel.get_style_context().add_class("net-panel")
         net_panel.set_size_request(-1, 200)
-        self.workspace.pack_end(net_panel, False, False, 0)
+        self.bot_paned.pack1(net_panel, True, False)
+        
+        # JS Executor
+        js_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        js_box.get_style_context().add_class("js-box")
+        
+        l_js = Gtk.Label(label="JS >")
+        l_js.get_style_context().add_class("js-prompt")
+        js_box.pack_start(l_js, False, False, 10)
+        
+        self.js_entry = Gtk.Entry()
+        self.js_entry.get_style_context().add_class("js-entry")
+        self.js_entry.set_placeholder_text("Inject Javascript Payload...")
+        self.js_entry.connect("activate", self.execute_js)
+        js_box.pack_start(self.js_entry, True, True, 0)
+        net_panel.pack_end(js_box, False, False, 0)
         
         l_net = Gtk.Label(label="NETWORK TRAFFIC MONITOR")
         l_net.get_style_context().add_class("section-label")
@@ -133,16 +166,30 @@ class ZeroHackerBrowser(Gtk.Window):
         scroll.add(self.net_list)
         net_panel.pack_start(scroll, True, True, 0)
         
-        # Initial Load
         self.webview.load_uri("https://hackerone.com")
-        
-        # Start random traffic generator
         GLib.timeout_add(1500, self.inject_mock_traffic)
+
+    def toggle_inspector(self, widget):
+        if self.inspector_window.is_visible():
+            self.inspector.close()
+            self.inspector_window.hide()
+        else:
+            self.inspector_window.show_all()
+            self.inspector.show()
+            # In an actual setup, the inspector attaches to a view. Since GTK WebKit inspector is native,
+            # calling show() spawns it natively if we don't attach, or we can just leave it as an external window mock for now.
+
+    def execute_js(self, entry):
+        code = entry.get_text()
+        self.webview.run_javascript(code, None, None, None)
+        entry.set_text("")
+        self.term_lbl.set_text(self.term_lbl.get_text() + "\n> Executed payload.")
 
     def on_url_entered(self, entry):
         url = entry.get_text()
         if not url.startswith("http"): url = "https://" + url
         self.webview.load_uri(url)
+        self.term_lbl.set_text(f"root@zero:~# Targeting {url}\nInitiating connection...")
 
     def on_uri_changed(self, webview, param):
         self.url_entry.set_text(webview.get_uri() or "")
@@ -179,11 +226,10 @@ class ZeroHackerBrowser(Gtk.Window):
         self.net_list.prepend(row)
         self.net_list.show_all()
         
-        # Keep list small
         if len(self.net_list.get_children()) > 20:
             self.net_list.remove(self.net_list.get_children()[-1])
             
-        return True # Continue timer
+        return True
 
     def setup_css(self):
         css = b'''
@@ -195,12 +241,12 @@ class ZeroHackerBrowser(Gtk.Window):
             .tool-btn { background: #0A141A; border: 1px solid #003B00; border-radius: 0; margin: 0 15px; padding: 10px; color: #00FF41; font-family: monospace; transition: all 0.2s; }
             .tool-btn:hover { background: #00FF41; color: #000000; }
             .tool-status { font-size: 10px; font-weight: bold; }
-            .terminal-container { background: #000000; border: 1px solid #00FF41; box-shadow: inset 0 0 30px #FF003C; }
+            .terminal-container { background: #000000; border: 1px solid #00FF41; box-shadow: inset 0 0 10px #00FF41; }
             .terminal-text { color: #00FF41; font-family: monospace; font-size: 12px; }
             .workspace { background-color: #0A141A; }
             .nav-bar { background: #020406; padding: 15px; border-bottom: 1px solid #00FF41; }
             .url-bar { background: #000000; color: #00FF41; border: 1px solid #00FF41; border-radius: 0; padding: 10px; font-family: monospace; font-size: 16px; box-shadow: 0 0 10px rgba(0,255,65,0.2); }
-            .exec-btn { background: #00FF41; color: #000000; border: none; font-weight: bold; font-family: monospace; padding: 10px 20px; border-radius: 0; }
+            .exec-btn { background: #00FF41; color: #000000; border: none; font-weight: bold; font-family: monospace; padding: 10px 20px; border-radius: 0; margin-left: 10px; }
             .exec-btn:hover { background: #FFFFFF; }
             .net-panel { background: #020406; border-top: 1px solid #00FF41; }
             .transparent-list { background: transparent; }
@@ -211,6 +257,9 @@ class ZeroHackerBrowser(Gtk.Window):
             .net-put { color: #FF8A00; }
             .net-200 { color: #00FF41; }
             .net-error { color: #FF003C; font-weight: bold; }
+            .js-box { background: #0A141A; border-top: 1px solid #003B00; padding: 5px; }
+            .js-prompt { color: #00E6F6; font-family: monospace; font-weight: bold; }
+            .js-entry { background: transparent; border: none; color: #FFFFFF; font-family: monospace; box-shadow: none; }
         '''
         provider = Gtk.CssProvider()
         provider.load_from_data(css)
