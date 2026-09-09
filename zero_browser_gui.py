@@ -2,6 +2,7 @@ import sys
 import gi
 import os
 import json
+import urllib.parse
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
 from gi.repository import Gtk, Gdk, WebKit2, GLib, Gio
@@ -9,6 +10,127 @@ from gi.repository import Gtk, Gdk, WebKit2, GLib, Gio
 CONFIG_DIR = os.path.expanduser("~/.config/zero-browser")
 BOOKMARKS_FILE = os.path.join(CONFIG_DIR, "bookmarks.json")
 FILTER_DIR = os.path.join(CONFIG_DIR, "filters")
+
+NEW_TAB_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #1a2130, #050608);
+            color: #FFFFFF;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .clock {
+            font-size: 8rem;
+            font-weight: 200;
+            letter-spacing: -2px;
+            text-shadow: 0 10px 30px rgba(0, 229, 255, 0.4);
+            margin-bottom: 20px;
+            color: #00E5FF;
+        }
+        .greeting {
+            font-size: 2rem;
+            font-weight: 400;
+            color: #8B94A5;
+            margin-bottom: 60px;
+        }
+        .search-box {
+            width: 600px;
+            background: rgba(16, 20, 30, 0.6);
+            border: 1px solid rgba(0, 229, 255, 0.2);
+            border-radius: 30px;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            color: #FFFFFF;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .search-box:focus {
+            border: 1px solid #00E5FF;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+            background: rgba(20, 25, 40, 0.8);
+        }
+        .search-box::placeholder {
+            color: #4A5568;
+        }
+        .bookmarks-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-top: 60px;
+        }
+        .bookmark-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: #8B94A5;
+            font-weight: bold;
+        }
+        .bookmark-card:hover {
+            background: rgba(0, 229, 255, 0.1);
+            border: 1px solid #00E5FF;
+            color: #00E5FF;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+    </style>
+    <script>
+        function updateTime() {
+            const now = new Date();
+            let h = now.getHours();
+            let m = now.getMinutes();
+            let s = now.getSeconds();
+            h = h < 10 ? '0' + h : h;
+            m = m < 10 ? '0' + m : m;
+            document.getElementById('clock').innerText = h + ':' + m;
+            
+            let greeting = 'Good evening';
+            if (h < 12) greeting = 'Good morning';
+            else if (h < 18) greeting = 'Good afternoon';
+            document.getElementById('greeting').innerText = greeting + ', Studio.';
+        }
+        setInterval(updateTime, 1000);
+        
+        function handleSearch(e) {
+            if (e.key === 'Enter') {
+                const query = e.target.value;
+                if (query.includes('.') && !query.includes(' ')) {
+                    window.location.href = 'https://' + query;
+                } else {
+                    window.location.href = 'https://google.com/search?q=' + encodeURIComponent(query);
+                }
+            }
+        }
+    </script>
+</head>
+<body onload="updateTime()">
+    <div class="clock" id="clock">00:00</div>
+    <div class="greeting" id="greeting">Welcome.</div>
+    <input type="text" class="search-box" placeholder="Search the web or enter a URL..." onkeypress="handleSearch(event)">
+    <div class="bookmarks-grid">
+        <a href="https://github.com" class="bookmark-card">GitHub</a>
+        <a href="https://youtube.com" class="bookmark-card">YouTube</a>
+        <a href="https://reddit.com" class="bookmark-card">Reddit</a>
+        <a href="https://twitter.com" class="bookmark-card">X</a>
+    </div>
+</body>
+</html>
+"""
 
 class ZeroBrowser(Gtk.Window):
     def __init__(self):
@@ -24,20 +146,16 @@ class ZeroBrowser(Gtk.Window):
         self.header.get_style_context().add_class("hidden-header")
         self.set_titlebar(self.header)
         
-        # Security Context
         self.context = WebKit2.WebContext.new_ephemeral()
         self.context.set_tls_errors_policy(WebKit2.TLSErrorsPolicy.FAIL)
         self.context.get_cookie_manager().set_accept_policy(WebKit2.CookieAcceptPolicy.NO_THIRD_PARTY)
         self.context.set_sandbox_enabled(True)
         self.context.connect("download-started", self.on_download_started)
         
-        # Setup Built-in Adblocker
         self.setup_adblocker()
-        
         self.setup_css()
         self.setup_shortcuts()
         
-        # Main Container
         main_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.add(main_box)
         
@@ -47,14 +165,12 @@ class ZeroBrowser(Gtk.Window):
         self.sidebar.get_style_context().add_class("sidebar")
         main_box.pack_start(self.sidebar, False, False, 0)
         
-        # Logo Area
         logo_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         logo = Gtk.Label(label="Z E R O")
         logo.get_style_context().add_class("sidebar-logo")
         logo_box.pack_start(logo, True, True, 0)
         self.sidebar.pack_start(logo_box, False, False, 10)
         
-        # URL & Search Bar
         url_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         url_box.set_margin_start(15)
         url_box.set_margin_end(15)
@@ -65,7 +181,6 @@ class ZeroBrowser(Gtk.Window):
         url_box.pack_start(self.url_entry, True, True, 0)
         self.sidebar.pack_start(url_box, False, False, 10)
         
-        # Navigation Actions
         nav_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         nav_box.set_margin_start(15)
         nav_box.set_margin_end(15)
@@ -77,14 +192,13 @@ class ZeroBrowser(Gtk.Window):
         self.btn_back.connect("clicked", self.on_back)
         self.btn_forward.connect("clicked", self.on_forward)
         self.btn_reload.connect("clicked", self.on_reload)
-        self.btn_new.connect("clicked", lambda x: self.new_tab("https://google.com"))
+        self.btn_new.connect("clicked", lambda x: self.new_tab("zero://newtab"))
         
         for btn in [self.btn_back, self.btn_forward, self.btn_reload, self.btn_new]:
             btn.get_style_context().add_class("nav-btn")
             nav_box.pack_start(btn, True, True, 0)
         self.sidebar.pack_start(nav_box, False, False, 5)
         
-        # Open Tabs Label
         lbl_spaces = Gtk.Label(label="OPEN TABS")
         lbl_spaces.get_style_context().add_class("section-label")
         lbl_spaces.set_halign(Gtk.Align.START)
@@ -92,7 +206,6 @@ class ZeroBrowser(Gtk.Window):
         lbl_spaces.set_margin_top(15)
         self.sidebar.pack_start(lbl_spaces, False, False, 5)
         
-        # Vertical Tabs List
         scroll_sidebar = Gtk.ScrolledWindow()
         scroll_sidebar.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.tabs_list = Gtk.ListBox()
@@ -102,7 +215,6 @@ class ZeroBrowser(Gtk.Window):
         scroll_sidebar.add(self.tabs_list)
         self.sidebar.pack_start(scroll_sidebar, True, True, 0)
         
-        # Bottom Tools Area (Bookmarks & DevTools)
         tools_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         tools_box.set_margin_start(15)
         tools_box.set_margin_end(15)
@@ -120,12 +232,11 @@ class ZeroBrowser(Gtk.Window):
         tools_box.pack_start(self.btn_dev, True, True, 0)
         self.sidebar.pack_end(tools_box, False, False, 0)
         
-        # ================= WEBVIEW AREA (OVERLAY) =================
+        # ================= WEBVIEW AREA =================
         self.webview_container = Gtk.Box()
         self.webview_container.get_style_context().add_class("webview-container")
         main_box.pack_start(self.webview_container, True, True, 0)
         
-        # Use Overlay for Toasts
         self.overlay = Gtk.Overlay()
         self.webview_container.pack_start(self.overlay, True, True, 0)
         
@@ -138,7 +249,6 @@ class ZeroBrowser(Gtk.Window):
         self.stack.set_transition_duration(250)
         self.webview_box.pack_start(self.stack, True, True, 0)
         
-        # Toast Notification System
         self.toast_revealer = Gtk.Revealer()
         self.toast_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
         self.toast_revealer.set_halign(Gtk.Align.CENTER)
@@ -151,7 +261,7 @@ class ZeroBrowser(Gtk.Window):
         self.overlay.add_overlay(self.toast_revealer)
         
         self.tab_map = {}
-        self.new_tab("https://google.com")
+        self.new_tab("zero://newtab")
         
     def setup_adblocker(self):
         os.makedirs(FILTER_DIR, exist_ok=True)
@@ -161,9 +271,7 @@ class ZeroBrowser(Gtk.Window):
             {"trigger": {"url-filter": ".*(pixel.gif|beacon.js|hotjar).*"}, "action": {"type": "block"}}
         ]
         json_path = os.path.join(FILTER_DIR, "privacy_shield.json")
-        with open(json_path, "w") as f:
-            json.dump(rules, f)
-            
+        with open(json_path, "w") as f: json.dump(rules, f)
         self.filter_store = WebKit2.UserContentFilterStore.new(FILTER_DIR)
         
         def on_compile_finished(store, result):
@@ -171,16 +279,12 @@ class ZeroBrowser(Gtk.Window):
                 filter_obj = store.save_finish(result)
                 self.content_manager = WebKit2.UserContentManager.new()
                 self.content_manager.add_filter(filter_obj)
-            except Exception as e:
-                print("Shield compile err:", e)
-                
-        # GTK4 uses bytes, GTK3 might need Gio.File or just byte array
+            except Exception: pass
+            
         try:
-            with open(json_path, "rb") as f:
-                data = GLib.Bytes.new(f.read())
+            with open(json_path, "rb") as f: data = GLib.Bytes.new(f.read())
             self.filter_store.save("privacy_shield", data, None, on_compile_finished)
-        except Exception:
-            pass # Fallback if save fails
+        except Exception: pass
 
     def show_toast(self, message):
         self.toast_lbl.set_text(message)
@@ -190,111 +294,23 @@ class ZeroBrowser(Gtk.Window):
     def setup_css(self):
         css = b'''
             window { background-color: #030305; }
-            .hidden-header {
-                background: #030305;
-                min-height: 0px;
-                padding: 0px;
-                border: none;
-                box-shadow: none;
-            }
-            .sidebar {
-                background-color: #080A10;
-                border-right: 1px solid #141722;
-            }
-            .sidebar-logo {
-                color: #FFFFFF;
-                font-size: 26px;
-                font-weight: 900;
-                letter-spacing: 4px;
-                text-shadow: 0 0 10px rgba(0,229,255,0.4);
-            }
-            .url-entry {
-                background: #10141E;
-                color: #00E5FF;
-                border: 1px solid #1C2333;
-                border-radius: 12px;
-                padding: 12px 15px;
-                font-size: 14px;
-                box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
-                caret-color: #00E5FF;
-            }
-            .url-entry:focus {
-                border: 1px solid #00E5FF;
-                background: #141926;
-                box-shadow: 0 0 12px rgba(0,229,255,0.3);
-            }
-            .nav-btn {
-                background: #10141E;
-                border: 1px solid #1C2333;
-                color: #8B94A5;
-                border-radius: 10px;
-                padding: 8px;
-                font-weight: bold;
-                font-size: 14px;
-                transition: all 0.2s ease;
-            }
-            .nav-btn:hover {
-                background: #181E2D;
-                color: #00E5FF;
-                border: 1px solid #00E5FF;
-                box-shadow: 0 0 8px rgba(0,229,255,0.2);
-            }
-            .section-label {
-                color: #4A5568;
-                font-size: 11px;
-                font-weight: 900;
-                letter-spacing: 1px;
-            }
+            .hidden-header { background: #030305; min-height: 0px; padding: 0px; border: none; box-shadow: none; }
+            .sidebar { background-color: #080A10; border-right: 1px solid #141722; }
+            .sidebar-logo { color: #FFFFFF; font-size: 26px; font-weight: 900; letter-spacing: 4px; text-shadow: 0 0 10px rgba(0,229,255,0.4); }
+            .url-entry { background: #10141E; color: #00E5FF; border: 1px solid #1C2333; border-radius: 12px; padding: 12px 15px; font-size: 14px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); caret-color: #00E5FF; }
+            .url-entry:focus { border: 1px solid #00E5FF; background: #141926; box-shadow: 0 0 12px rgba(0,229,255,0.3); }
+            .nav-btn { background: #10141E; border: 1px solid #1C2333; color: #8B94A5; border-radius: 10px; padding: 8px; font-weight: bold; font-size: 14px; transition: all 0.2s ease; }
+            .nav-btn:hover { background: #181E2D; color: #00E5FF; border: 1px solid #00E5FF; box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+            .section-label { color: #4A5568; font-size: 11px; font-weight: 900; letter-spacing: 1px; }
             .tabs-list { background: transparent; }
-            .tab-row {
-                background: transparent;
-                padding: 12px 15px;
-                margin: 4px 15px;
-                border-radius: 10px;
-                color: #8B94A5;
-                font-weight: bold;
-                font-size: 13px;
-                border: 1px solid transparent;
-            }
-            .tab-row:hover {
-                background: #10141E;
-                color: #FFFFFF;
-                border: 1px solid #1C2333;
-            }
-            .tab-row:selected {
-                background: rgba(0, 229, 255, 0.1);
-                color: #00E5FF;
-                border-left: 3px solid #00E5FF;
-                border-top: 1px solid rgba(0,229,255,0.3);
-                border-bottom: 1px solid rgba(0,229,255,0.3);
-                border-right: 1px solid rgba(0,229,255,0.3);
-            }
-            .tab-close-btn {
-                background: transparent;
-                border: none;
-                color: #4A5568;
-                padding: 0px 5px;
-            }
+            .tab-row { background: transparent; padding: 12px 15px; margin: 4px 15px; border-radius: 10px; color: #8B94A5; font-weight: bold; font-size: 13px; border: 1px solid transparent; }
+            .tab-row:hover { background: #10141E; color: #FFFFFF; border: 1px solid #1C2333; }
+            .tab-row:selected { background: rgba(0, 229, 255, 0.1); color: #00E5FF; border-left: 3px solid #00E5FF; border-top: 1px solid rgba(0,229,255,0.3); border-bottom: 1px solid rgba(0,229,255,0.3); border-right: 1px solid rgba(0,229,255,0.3); }
+            .tab-close-btn { background: transparent; border: none; color: #4A5568; padding: 0px 5px; }
             .tab-close-btn:hover { color: #FF3366; }
-            .webview-container {
-                background-color: #030305;
-                padding: 12px 12px 12px 0px;
-            }
-            .webview-box {
-                background: #10141E;
-                border-radius: 16px;
-                border: 1px solid #1C2333;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-                overflow: hidden;
-            }
-            .toast {
-                background: rgba(0, 229, 255, 0.9);
-                color: #000000;
-                font-weight: bold;
-                padding: 10px 20px;
-                border-radius: 20px;
-                box-shadow: 0 4px 15px rgba(0,229,255,0.5);
-            }
+            .webview-container { background-color: #030305; padding: 12px 12px 12px 0px; }
+            .webview-box { background: #10141E; border-radius: 16px; border: 1px solid #1C2333; box-shadow: 0 10px 30px rgba(0,0,0,0.8); overflow: hidden; }
+            .toast { background: rgba(0, 229, 255, 0.9); color: #000000; font-weight: bold; padding: 10px 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,229,255,0.5); }
         '''
         provider = Gtk.CssProvider()
         provider.load_from_data(css)
@@ -304,7 +320,7 @@ class ZeroBrowser(Gtk.Window):
         accel = Gtk.AccelGroup()
         self.add_accel_group(accel)
         key, mod = Gtk.accelerator_parse("<Primary>t")
-        accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.new_tab("https://google.com"))
+        accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.new_tab("zero://newtab"))
         key, mod = Gtk.accelerator_parse("<Primary>w")
         accel.connect(key, mod, Gtk.AccelFlags.VISIBLE, lambda *a: self.close_current_tab(None))
         key, mod = Gtk.accelerator_parse("<Primary>l")
@@ -323,7 +339,7 @@ class ZeroBrowser(Gtk.Window):
             
     def bookmark_current(self, widget):
         wv = self.current_webview()
-        if wv and wv.get_uri():
+        if wv and wv.get_uri() and not wv.get_uri().startswith("zero://"):
             url = wv.get_uri()
             title = wv.get_title() or url
             self.bookmarks[url] = title
@@ -339,7 +355,6 @@ class ZeroBrowser(Gtk.Window):
         download.connect("finished", lambda d: self.show_toast("✅ Download Complete!"))
         
     def new_tab(self, url):
-        # Attach adblock content manager if compiled
         if hasattr(self, 'content_manager'):
             webview = WebKit2.WebView.new_with_context_and_user_content_manager(self.context, self.content_manager)
         else:
@@ -365,7 +380,7 @@ class ZeroBrowser(Gtk.Window):
         row.get_style_context().add_class("tab-row")
         
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        lbl = Gtk.Label(label="Loading...")
+        lbl = Gtk.Label(label="New Tab")
         lbl.set_halign(Gtk.Align.START)
         lbl.set_ellipsize(3)
         
@@ -385,7 +400,10 @@ class ZeroBrowser(Gtk.Window):
         self.tabs_list.add(row)
         self.tabs_list.select_row(row)
         
-        webview.load_uri(url)
+        if url == "zero://newtab":
+            webview.load_html(NEW_TAB_HTML, "zero://newtab")
+        else:
+            webview.load_uri(url)
         return True
         
     def close_tab(self, webview, row):
@@ -395,7 +413,7 @@ class ZeroBrowser(Gtk.Window):
         del self.tab_map[webview]
         
         if len(self.tab_map) == 0:
-            self.new_tab("https://google.com")
+            self.new_tab("zero://newtab")
             
     def current_webview(self):
         row = self.tabs_list.get_selected_row()
@@ -414,25 +432,36 @@ class ZeroBrowser(Gtk.Window):
         if row:
             self.stack.set_visible_child_name(row.stack_id)
             wv = self.current_webview()
-            if wv and wv.get_uri(): self.url_entry.set_text(wv.get_uri())
+            if wv and wv.get_uri(): 
+                uri = wv.get_uri()
+                if uri == "zero://newtab": self.url_entry.set_text("")
+                else: self.url_entry.set_text(uri)
                 
     def on_url_entered(self, widget):
         url = self.url_entry.get_text()
         if url in self.bookmarks: pass
         elif not url.startswith("http://") and not url.startswith("https://"):
             if "." in url and " " not in url: url = "https://" + url
-            else: url = "https://google.com/search?q=" + url.replace(" ", "+")
+            else: url = "https://google.com/search?q=" + urllib.parse.quote_plus(url)
         wv = self.current_webview()
         if wv: wv.load_uri(url)
         
     def on_load_changed(self, webview, load_event):
         if webview == self.current_webview() and load_event == WebKit2.LoadEvent.COMMITTED:
-            self.url_entry.set_text(webview.get_uri())
+            uri = webview.get_uri()
+            if uri != "zero://newtab":
+                self.url_entry.set_text(uri)
+            else:
+                self.url_entry.set_text("")
             
     def on_title_changed(self, webview, param):
         row = self.tab_map.get(webview)
-        if row and webview.get_title():
-            row.lbl.set_text(webview.get_title()[:20] + "...")
+        if row:
+            title = webview.get_title()
+            if webview.get_uri() == "zero://newtab":
+                row.lbl.set_text("New Tab")
+            elif title:
+                row.lbl.set_text(title[:20] + "...")
             
     def on_back(self, widget):
         wv = self.current_webview()
