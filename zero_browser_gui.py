@@ -59,6 +59,8 @@ class ZeroHackerBrowser(Gtk.Window):
             s_lbl.get_style_context().add_class("tool-status")
             box.pack_end(s_lbl, False, False, 0)
             btn.add(box)
+            if "Cookie" in name:
+                btn.connect("clicked", self.toggle_cookie_editor)
             self.sidebar.pack_start(btn, False, False, 5)
             
         self.sidebar.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 15)
@@ -99,15 +101,14 @@ class ZeroHackerBrowser(Gtk.Window):
         btn_exec.connect("clicked", lambda w: self.on_url_entered(self.url_entry))
         nav_bar.pack_start(btn_exec, False, False, 0)
         
-        # NEW: Developer Tools Actions
         btn_dev = Gtk.Button(label="[ INSPECT ]")
         btn_dev.get_style_context().add_class("exec-btn")
         btn_dev.connect("clicked", self.toggle_inspector)
         nav_bar.pack_start(btn_dev, False, False, 0)
         
-        # Split workspace for webview and inspector
-        self.paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
-        self.workspace.pack_start(self.paned, True, True, 0)
+        # Split workspace for webview and Right Panels
+        self.main_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
+        self.workspace.pack_start(self.main_paned, True, True, 0)
         
         # Web View
         ctx = WebKit2.WebContext.new_ephemeral()
@@ -118,15 +119,64 @@ class ZeroHackerBrowser(Gtk.Window):
         settings.set_enable_developer_extras(True)
         self.webview.set_settings(settings)
         
-        self.paned.pack1(self.webview, True, False)
+        self.main_paned.pack1(self.webview, True, False)
         
-        # NEW: Native Web Inspector View
+        # RIGHT PANELS (Inspector & Cookie Editor)
+        self.right_stack = Gtk.Stack()
+        self.right_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self.right_stack.set_size_request(400, -1)
+        self.main_paned.pack2(self.right_stack, False, False)
+        
+        # Inspector Panel
         self.inspector_window = Gtk.ScrolledWindow()
-        self.inspector_window.set_size_request(400, -1)
-        self.paned.pack2(self.inspector_window, False, False)
-        self.inspector_window.hide()
-        
+        self.right_stack.add_named(self.inspector_window, "inspector")
         self.inspector = self.webview.get_inspector()
+        
+        # Cookie Forger Panel
+        self.cookie_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.cookie_panel.get_style_context().add_class("cookie-panel")
+        self.right_stack.add_named(self.cookie_panel, "cookie")
+        
+        l_c = Gtk.Label(label="COOKIE FORGER")
+        l_c.get_style_context().add_class("section-label")
+        l_c.set_halign(Gtk.Align.START)
+        l_c.set_margin_top(15)
+        l_c.set_margin_start(15)
+        self.cookie_panel.pack_start(l_c, False, False, 10)
+        
+        grid = Gtk.Grid(column_spacing=10, row_spacing=10)
+        grid.set_margin_start(15)
+        grid.set_margin_end(15)
+        
+        grid.attach(Gtk.Label(label="Domain:"), 0, 0, 1, 1)
+        self.c_domain = Gtk.Entry()
+        self.c_domain.set_text("hackerone.com")
+        self.c_domain.get_style_context().add_class("url-bar")
+        grid.attach(self.c_domain, 1, 0, 1, 1)
+        
+        grid.attach(Gtk.Label(label="Name:"), 0, 1, 1, 1)
+        self.c_name = Gtk.Entry()
+        self.c_name.set_text("session_id")
+        self.c_name.get_style_context().add_class("url-bar")
+        grid.attach(self.c_name, 1, 1, 1, 1)
+        
+        grid.attach(Gtk.Label(label="Value:"), 0, 2, 1, 1)
+        self.c_val = Gtk.Entry()
+        self.c_val.set_text("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+        self.c_val.get_style_context().add_class("url-bar")
+        grid.attach(self.c_val, 1, 2, 1, 1)
+        
+        self.cookie_panel.pack_start(grid, False, False, 10)
+        
+        btn_inj = Gtk.Button(label="[ INJECT COOKIE ]")
+        btn_inj.get_style_context().add_class("exec-btn")
+        btn_inj.set_margin_start(15)
+        btn_inj.set_margin_end(15)
+        btn_inj.connect("clicked", self.inject_cookie)
+        self.cookie_panel.pack_start(btn_inj, False, False, 10)
+        
+        # Hide right stack initially
+        self.right_stack.hide()
         
         # ================= BOTTOM PANEL (Network Monitor) =================
         self.bot_paned = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
@@ -170,14 +220,25 @@ class ZeroHackerBrowser(Gtk.Window):
         GLib.timeout_add(1500, self.inject_mock_traffic)
 
     def toggle_inspector(self, widget):
-        if self.inspector_window.is_visible():
+        if self.right_stack.is_visible() and self.right_stack.get_visible_child_name() == "inspector":
+            self.right_stack.hide()
             self.inspector.close()
-            self.inspector_window.hide()
         else:
-            self.inspector_window.show_all()
+            self.right_stack.show()
+            self.right_stack.set_visible_child_name("inspector")
             self.inspector.show()
-            # In an actual setup, the inspector attaches to a view. Since GTK WebKit inspector is native,
-            # calling show() spawns it natively if we don't attach, or we can just leave it as an external window mock for now.
+
+    def toggle_cookie_editor(self, widget):
+        if self.right_stack.is_visible() and self.right_stack.get_visible_child_name() == "cookie":
+            self.right_stack.hide()
+        else:
+            self.right_stack.show()
+            self.right_stack.set_visible_child_name("cookie")
+
+    def inject_cookie(self, widget):
+        domain = self.c_domain.get_text()
+        name = self.c_name.get_text()
+        self.term_lbl.set_text(self.term_lbl.get_text() + f"\n> Injected cookie {name} into {domain}")
 
     def execute_js(self, entry):
         code = entry.get_text()
@@ -249,6 +310,7 @@ class ZeroHackerBrowser(Gtk.Window):
             .exec-btn { background: #00FF41; color: #000000; border: none; font-weight: bold; font-family: monospace; padding: 10px 20px; border-radius: 0; margin-left: 10px; }
             .exec-btn:hover { background: #FFFFFF; }
             .net-panel { background: #020406; border-top: 1px solid #00FF41; }
+            .cookie-panel { background: #020406; border-left: 1px solid #00FF41; }
             .transparent-list { background: transparent; }
             .net-row { background: transparent; color: #00FF41; font-family: monospace; padding: 4px; border-bottom: 1px solid #003B00; }
             .net-get { color: #00E6F6; }
@@ -260,6 +322,7 @@ class ZeroHackerBrowser(Gtk.Window):
             .js-box { background: #0A141A; border-top: 1px solid #003B00; padding: 5px; }
             .js-prompt { color: #00E6F6; font-family: monospace; font-weight: bold; }
             .js-entry { background: transparent; border: none; color: #FFFFFF; font-family: monospace; box-shadow: none; }
+            label { color: #00FF41; font-family: monospace; }
         '''
         provider = Gtk.CssProvider()
         provider.load_from_data(css)
