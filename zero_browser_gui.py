@@ -4,7 +4,7 @@ import os
 import json
 from datetime import datetime
 gi.require_version('Gtk', '3.0')
-gi.require_version('WebKit2', '4.0')
+gi.require_version('WebKit2', '4.1')
 from gi.repository import Gtk, Gdk, GLib, Pango
 from gi.repository import WebKit2
 
