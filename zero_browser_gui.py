@@ -9,7 +9,7 @@ gi.require_version('WebKit2', '4.1')
 from gi.repository import Gtk, Gdk, GLib, Pango
 from gi.repository import WebKit2
 
-START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Browser Start</title><style>body { margin: 0; padding: 0; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; } .container { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); animation: fadein 0.5s ease-out; } @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } h1 { font-size: 48px; font-weight: 800; margin: 0 0 10px 0; background: linear-gradient(90deg, #4D90FE, #00C853); -webkit-background-clip: text; -webkit-text-fill-color: transparent; } p { color: #A0AAB5; font-size: 16px; margin-bottom: 30px; } .search-box { display: flex; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 10px 20px; margin-bottom: 30px; width: 400px; transition: all 0.3s ease; } .search-box:focus-within { border-color: #4D90FE; box-shadow: 0 0 15px rgba(77,144,254,0.2); } .search-box input { background: transparent; border: none; color: white; font-size: 16px; width: 100%; outline: none; } .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; } .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px 10px; text-decoration: none; color: white; font-size: 14px; font-weight: 500; transition: all 0.2s; } .card:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); border-color: rgba(255,255,255,0.2); }</style></head><body><div class="container"><h1 id="time">00:00</h1><p>Welcome to Zero Browser.</p><div class="search-box"><input type="text" id="q" placeholder="Search or enter URL..." autofocus></div><div class="grid"><a href="https://github.com" class="card">GitHub</a><a href="https://stackoverflow.com" class="card">StackOverflow</a><a href="https://youtube.com" class="card">YouTube</a><a href="zero://settings" class="card">Settings</a><a href="zero://shortcuts" class="card">Shortcuts</a></div></div><script>function updateTime() { const now = new Date(); document.getElementById('time').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); } setInterval(updateTime, 1000); updateTime(); document.getElementById('q').addEventListener('keypress', function(e) { if(e.key === 'Enter') { let val = this.value; if(val.includes('.') && !val.includes(' ')) { if(!val.startsWith('http')) val = 'https://' + val; window.location.href = val; } else { window.location.href = 'zero://search?q=' + encodeURIComponent(val); } } });</script></body></html>"""
+START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Browser Start</title><style>body { margin: 0; padding: 0; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; } .container { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); animation: fadein 0.5s ease-out; } @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } h1 { font-size: 48px; font-weight: 800; margin: 0 0 10px 0; background: linear-gradient(90deg, #4D90FE, #00C853); -webkit-background-clip: text; -webkit-text-fill-color: transparent; } p { color: #A0AAB5; font-size: 16px; margin-bottom: 30px; } .search-box { display: flex; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 10px 20px; margin-bottom: 30px; width: 400px; transition: all 0.3s ease; } .search-box:focus-within { border-color: #4D90FE; box-shadow: 0 0 15px rgba(77,144,254,0.2); } .search-box input { background: transparent; border: none; color: white; font-size: 16px; width: 100%; outline: none; } .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; } .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px 10px; text-decoration: none; color: white; font-size: 14px; font-weight: 500; transition: all 0.2s; } .card:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); border-color: rgba(255,255,255,0.2); }</style></head><body><div class="container"><h1 id="time">00:00</h1><p>Welcome to Zero Browser.</p><div class="search-box"><input type="text" id="q" placeholder="Search or enter URL..." autofocus></div><div class="grid"><a href="https://github.com" class="card">GitHub</a><a href="zero://sessions" class="card">Sessions</a><a href="https://youtube.com" class="card">YouTube</a><a href="zero://settings" class="card">Settings</a><a href="zero://shortcuts" class="card">Shortcuts</a></div></div><script>function updateTime() { const now = new Date(); document.getElementById('time').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); } setInterval(updateTime, 1000); updateTime(); document.getElementById('q').addEventListener('keypress', function(e) { if(e.key === 'Enter') { let val = this.value; if(val.includes('.') && !val.includes(' ')) { if(!val.startsWith('http')) val = 'https://' + val; window.location.href = val; } else { window.location.href = 'zero://search?q=' + encodeURIComponent(val); } } });</script></body></html>"""
 
 SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } h2 { font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; } .btn { background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; } .btn:hover { background: #3b78e7; } .btn-danger { background: #d32f2f; } .btn-danger:hover { background: #b71c1c; } .info { color: #A0AAB5; margin-bottom: 20px; }</style></head><body><h1>Settings</h1><div class="section"><h2>Appearance</h2><p class="info">Customize how Zero Browser looks.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div><div class="section"><h2>Privacy & Security</h2><p class="info">Prevent WebRTC IP leaks by disabling Media Stream APIs.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_webrtc')">Toggle Media/WebRTC Protection</button></div><div class="section"><h2>Search Engines</h2><p class="info">Configure your custom search engines via the JSON config file.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_search_config')">Edit Search Engines Config</button></div><div class="section"><h2>User Scripts</h2><p class="info">Load custom JS on all pages. Open the scripts folder.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_userscripts_dir')">Open User Scripts Folder</button></div><div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div></body></html>"""
 
@@ -58,6 +58,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.session_path = os.path.join(os.path.expanduser("~"), ".zero_session.json")
         self.search_engines_path = os.path.join(os.path.expanduser("~"), ".zero_search_engines.json")
         self.permissions_path = os.path.join(os.path.expanduser("~"), ".zero_site_permissions.json")
+        self.named_sessions_path = os.path.join(os.path.expanduser("~"), ".zero_named_sessions.json")
         self.userscripts_dir = os.path.join(os.path.expanduser("~"), ".zero_userscripts")
         if not os.path.exists(self.userscripts_dir): os.makedirs(self.userscripts_dir)
         
@@ -68,6 +69,9 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.site_permissions = {}
         self.load_site_permissions()
+        
+        self.named_sessions = {}
+        self.load_named_sessions()
         
         self.search_engines = {
             "google": "https://google.com/search?q=",
@@ -240,6 +244,8 @@ class ZeroDevBrowser(Gtk.Window):
         self.user_content.connect("script-message-received::passwords", self.on_password_intercepted)
         self.user_content.register_script_message_handler("settings")
         self.user_content.connect("script-message-received::settings", self.on_settings_message)
+        self.user_content.register_script_message_handler("sessions")
+        self.user_content.connect("script-message-received::sessions", self.on_sessions_message)
         
         for css in (SCROLLBAR_CSS, COSMETIC_ADBLOCK_CSS):
             sheet = WebKit2.UserStyleSheet(css, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserStyleLevel.USER, None, None)
@@ -255,6 +261,49 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.rebuild_url_completion()
         self.load_session()
+
+    # ================= SESSION MANAGER =================
+    def load_named_sessions(self):
+        if os.path.exists(self.named_sessions_path):
+            try:
+                with open(self.named_sessions_path, "r") as f: self.named_sessions = json.load(f)
+            except: pass
+
+    def save_named_sessions(self):
+        try:
+            with open(self.named_sessions_path, "w") as f: json.dump(self.named_sessions, f)
+        except: pass
+        
+    def generate_sessions_html(self):
+        cards = ""
+        for name, urls in self.named_sessions.items():
+            cards += f"""<div class='card'><h3>{name}</h3><p>{len(urls)} tabs</p><br><button class='btn' onclick="window.webkit.messageHandlers.sessions.postMessage('load:{name}')">Load</button><button class='btn btn-danger' onclick="window.webkit.messageHandlers.sessions.postMessage('delete:{name}')">Delete</button></div>"""
+        
+        return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Sessions</title><style>body {{ margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }} h1 {{ font-size: 36px; font-weight: 800; margin-bottom: 30px; }} .section {{ background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; }} .btn {{ background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; }} .btn:hover {{ background: #3b78e7; }} .btn-danger {{ background: #d32f2f; }} .btn-danger:hover {{ background: #b71c1c; }} input {{ background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 10px; color: white; font-size: 14px; margin-right: 10px; width: 300px; }} .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; }} .card {{ background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; }} h3 {{ margin-top: 0; }}</style></head><body><h1>Session Manager</h1><div class="section"><input type="text" id="sname" placeholder="Name for new session"><button class="btn" onclick="save()">Save Current Workspace as Session</button></div><div class="grid">{cards}</div><script>function save() {{ let n = document.getElementById('sname').value; if(n) window.webkit.messageHandlers.sessions.postMessage('save:'+n); }}</script></body></html>"""
+
+    def on_sessions_message(self, manager, js_result):
+        msg = js_result.get_js_value().to_string()
+        if msg.startswith("save:"):
+            name = msg[5:]
+            session = []
+            for wid, data in self.tabs_map.items():
+                if data[2] == self.current_workspace:
+                    uri = data[0].get_uri()
+                    if uri and not uri.startswith("zero://"):
+                        session.append(uri)
+            self.named_sessions[name] = session
+            self.save_named_sessions()
+            if hasattr(self, 'current_webview'): self.current_webview.load_html(self.generate_sessions_html(), "zero://sessions")
+        elif msg.startswith("load:"):
+            name = msg[5:]
+            if name in self.named_sessions:
+                for uri in self.named_sessions[name]: self.new_tab(uri)
+        elif msg.startswith("delete:"):
+            name = msg[7:]
+            if name in self.named_sessions:
+                del self.named_sessions[name]
+                self.save_named_sessions()
+                if hasattr(self, 'current_webview'): self.current_webview.load_html(self.generate_sessions_html(), "zero://sessions")
 
     # ================= SMART URL COMPLETION =================
     def rebuild_url_completion(self):
@@ -538,6 +587,7 @@ class ZeroDevBrowser(Gtk.Window):
             cmd_q = q[1:].strip()
             commands = [
                 ("New Tab", "cmd:new_tab", "tab-new-symbolic"),
+                ("Sessions Manager", "zero://sessions", "folder-symbolic"),
                 ("Settings", "zero://settings", "preferences-system-symbolic"),
                 ("Shortcuts", "zero://shortcuts", "help-keyboard-shortcuts-symbolic"),
                 ("Toggle Theme", "cmd:toggle_theme", "weather-clear-symbolic"),
@@ -1266,6 +1316,7 @@ class ZeroDevBrowser(Gtk.Window):
         if url == "zero://start": webview.load_html(START_PAGE_HTML, "zero://start")
         elif url == "zero://settings": webview.load_html(SETTINGS_PAGE_HTML, "zero://settings")
         elif url == "zero://shortcuts": webview.load_html(SHORTCUTS_PAGE_HTML, "zero://shortcuts")
+        elif url == "zero://sessions": webview.load_html(self.generate_sessions_html(), "zero://sessions")
         elif url.startswith("zero://search?q="):
             q = urllib.parse.unquote(url.split("=")[1])
             engine = self.search_engine_combo.get_active_id()
@@ -1365,6 +1416,9 @@ class ZeroDevBrowser(Gtk.Window):
             return
         elif url == "zero://shortcuts":
             if hasattr(self, 'current_webview'): self.current_webview.load_html(SHORTCUTS_PAGE_HTML, "zero://shortcuts")
+            return
+        elif url == "zero://sessions":
+            if hasattr(self, 'current_webview'): self.current_webview.load_html(self.generate_sessions_html(), "zero://sessions")
             return
             
         if url.startswith("/"):
