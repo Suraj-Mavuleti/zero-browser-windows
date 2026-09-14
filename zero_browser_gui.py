@@ -55,6 +55,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.pw_path = os.path.join(os.path.expanduser("~"), ".zero_passwords.json")
         self.passwords = {}
         self.is_private = False
+        self.current_workspace = "default"
         
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.main_vbox)
@@ -370,10 +371,40 @@ class ZeroDevBrowser(Gtk.Window):
 
     def build_tabs_sidebar(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); box.set_size_request(200, -1); box.get_style_context().add_class("vertical-tabs-box")
-        lbl = Gtk.Label(label="OPEN TABS"); lbl.set_halign(Gtk.Align.START); lbl.set_margin_top(10); lbl.set_margin_bottom(10); lbl.set_margin_start(10); lbl.get_style_context().add_class("tabs-header"); box.pack_start(lbl, False, False, 0)
+        
+        # Workspace Dropdown
+        self.workspace_combo = Gtk.ComboBoxText()
+        self.workspace_combo.append("default", "Default Workspace")
+        self.workspace_combo.append("work", "Work")
+        self.workspace_combo.append("social", "Social")
+        self.workspace_combo.append("research", "Research")
+        self.workspace_combo.set_active(0)
+        self.workspace_combo.connect("changed", self.on_workspace_changed)
+        self.workspace_combo.set_margin_top(10); self.workspace_combo.set_margin_bottom(10); self.workspace_combo.set_margin_start(10); self.workspace_combo.set_margin_end(10)
+        box.pack_start(self.workspace_combo, False, False, 0)
+        
         self.tab_listbox = Gtk.ListBox(); self.tab_listbox.get_style_context().add_class("vertical-tabs-list"); self.tab_listbox.connect("row-activated", self.on_tab_clicked)
         scroll = Gtk.ScrolledWindow(); scroll.add(self.tab_listbox); box.pack_start(scroll, True, True, 0)
         return box
+        
+    def on_workspace_changed(self, combo):
+        self.current_workspace = combo.get_active_id()
+        visible_count = 0
+        first_visible = None
+        for wid, data in self.tabs_map.items():
+            wv, row, ws = data
+            if ws == self.current_workspace:
+                row.show()
+                visible_count += 1
+                if not first_visible: first_visible = row
+            else:
+                row.hide()
+        
+        if visible_count == 0:
+            self.new_tab("zero://start")
+        elif first_visible:
+            self.tab_listbox.select_row(first_visible)
+            self.on_tab_clicked(self.tab_listbox, first_visible)
 
     def on_tabs_toggled(self, btn): self.tabs_revealer.set_reveal_child(btn.get_active())
 
@@ -390,10 +421,18 @@ class ZeroDevBrowser(Gtk.Window):
 
     def close_tab(self, wid, btn=None):
         if wid in self.tabs_map:
-            wv, row = self.tabs_map[wid]
+            wv, row, ws = self.tabs_map[wid]
             self.tab_listbox.remove(row); self.tab_stack.remove(self.tab_stack.get_child_by_name(wid)); wv.destroy(); del self.tabs_map[wid]
-            children = self.tab_listbox.get_children()
-            if children: self.tab_listbox.select_row(children[0]); self.on_tab_clicked(self.tab_listbox, children[0])
+            
+            # Find next visible tab in current workspace
+            next_visible = None
+            for c in self.tab_listbox.get_children():
+                if c.is_visible():
+                    next_visible = c
+                    break
+            
+            if next_visible:
+                self.tab_listbox.select_row(next_visible); self.on_tab_clicked(self.tab_listbox, next_visible)
             else: self.new_tab("zero://start")
 
     def on_devtools_toggled(self, btn): self.devtools_revealer.set_reveal_child(btn.get_active())
@@ -609,7 +648,7 @@ class ZeroDevBrowser(Gtk.Window):
         hbox.pack_start(icon, False, False, 0); hbox.pack_start(label, True, True, 0); hbox.pack_end(btn_close, False, False, 0); hbox.pack_end(btn_mute, False, False, 0)
         row.add(hbox); row.show_all()
         
-        self.tab_listbox.add(row); self.tabs_map[wid] = (webview, row); self.tab_stack.show_all()
+        self.tab_listbox.add(row); self.tabs_map[wid] = (webview, row, self.current_workspace); self.tab_stack.show_all()
         self.tab_listbox.select_row(row); self.on_tab_clicked(self.tab_listbox, row)
         
         def on_uri(w, p):
