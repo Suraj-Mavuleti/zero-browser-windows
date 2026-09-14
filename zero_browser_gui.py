@@ -169,7 +169,12 @@ class ZeroDevBrowser(Gtk.Window):
         # Data Models
         self.history_store = Gtk.ListStore(str, str) 
         self.downloads_store = Gtk.ListStore(str, str, str)
+        self.bookmarks_store = Gtk.ListStore(str, str)
         self.custom_headers = []
+        
+        # Preload bookmarks if exist
+        self.bm_path = os.path.join(os.path.expanduser("~"), ".zero_bookmarks.json")
+        self.load_bookmarks()
         
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.main_vbox)
@@ -183,7 +188,7 @@ class ZeroDevBrowser(Gtk.Window):
         # Left Controls
         self.btn_sidebar = Gtk.ToggleButton()
         self.btn_sidebar.add(Gtk.Image.new_from_icon_name("view-sidebar-symbolic", Gtk.IconSize.MENU))
-        self.btn_sidebar.set_tooltip_text("Toggle Sidebar (History/Downloads/Exploits)")
+        self.btn_sidebar.set_tooltip_text("Toggle Sidebar (History/Downloads/Exploits/Bookmarks)")
         self.btn_sidebar.connect("toggled", self.on_sidebar_toggled)
         self.header.pack_start(self.btn_sidebar)
 
@@ -209,6 +214,12 @@ class ZeroDevBrowser(Gtk.Window):
         self.header.set_custom_title(self.url_bar)
 
         # Right Controls
+        self.btn_bookmark = Gtk.Button()
+        self.btn_bookmark.add(Gtk.Image.new_from_icon_name("bookmark-new-symbolic", Gtk.IconSize.MENU))
+        self.btn_bookmark.set_tooltip_text("Bookmark Current Page")
+        self.btn_bookmark.connect("clicked", self.on_add_bookmark)
+        self.header.pack_end(self.btn_bookmark)
+        
         self.btn_devtools = Gtk.ToggleButton()
         self.btn_devtools.add(Gtk.Image.new_from_icon_name("preferences-system-symbolic", Gtk.IconSize.MENU))
         self.btn_devtools.set_tooltip_text("Toggle Hacker Tools")
@@ -260,6 +271,34 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.new_tab("zero://start")
 
+    def load_bookmarks(self):
+        if os.path.exists(self.bm_path):
+            try:
+                with open(self.bm_path, 'r') as f:
+                    data = json.load(f)
+                    for title, url in data:
+                        self.bookmarks_store.append([title, url])
+            except: pass
+
+    def save_bookmarks(self):
+        data = []
+        for row in self.bookmarks_store:
+            data.append([row[0], row[1]])
+        with open(self.bm_path, 'w') as f:
+            json.dump(data, f)
+
+    def on_add_bookmark(self, btn):
+        if hasattr(self, 'current_webview'):
+            uri = self.current_webview.get_uri()
+            title = self.current_webview.get_title() or "Untitled"
+            if uri and not uri.startswith("zero://"):
+                self.bookmarks_store.append([title, uri])
+                self.save_bookmarks()
+                
+                # Show quick toast or indicate success
+                btn.set_image(Gtk.Image.new_from_icon_name("emblem-ok-symbolic", Gtk.IconSize.MENU))
+                GLib.timeout_add(1000, lambda: btn.set_image(Gtk.Image.new_from_icon_name("bookmark-new-symbolic", Gtk.IconSize.MENU)) and False)
+
     def on_sidebar_toggled(self, btn):
         self.sidebar_revealer.set_reveal_child(btn.get_active())
 
@@ -273,7 +312,15 @@ class ZeroDevBrowser(Gtk.Window):
         nb = Gtk.Notebook()
         nb.set_tab_pos(Gtk.PositionType.BOTTOM)
         
-        # 1. History
+        # 1. Bookmarks
+        bm_tree = Gtk.TreeView(model=self.bookmarks_store)
+        r_bm = Gtk.CellRendererText()
+        bm_tree.append_column(Gtk.TreeViewColumn("Title", r_bm, text=0))
+        bm_tree.connect("row-activated", self.on_history_activated)
+        scroll0 = Gtk.ScrolledWindow(); scroll0.add(bm_tree)
+        nb.append_page(scroll0, Gtk.Label(label="Bookmarks"))
+
+        # 2. History
         hist_tree = Gtk.TreeView(model=self.history_store)
         renderer = Gtk.CellRendererText()
         hist_tree.append_column(Gtk.TreeViewColumn("Time", renderer, text=0))
@@ -282,7 +329,7 @@ class ZeroDevBrowser(Gtk.Window):
         scroll1 = Gtk.ScrolledWindow(); scroll1.add(hist_tree)
         nb.append_page(scroll1, Gtk.Label(label="History"))
         
-        # 2. Downloads
+        # 3. Downloads
         dl_tree = Gtk.TreeView(model=self.downloads_store)
         r2 = Gtk.CellRendererText()
         dl_tree.append_column(Gtk.TreeViewColumn("File", r2, text=0))
@@ -290,7 +337,7 @@ class ZeroDevBrowser(Gtk.Window):
         scroll2 = Gtk.ScrolledWindow(); scroll2.add(dl_tree)
         nb.append_page(scroll2, Gtk.Label(label="Downloads"))
         
-        # 3. Exploits
+        # 4. Exploits
         plist = Gtk.ListBox()
         payloads = [
             ("XSS Alert", "javascript:alert(1)"),
@@ -330,6 +377,16 @@ class ZeroDevBrowser(Gtk.Window):
         
         # Security Toggles (Right side of toolbar)
         sec_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+        
+        # User Agent Spoofer combo
+        self.ua_combo = Gtk.ComboBoxText()
+        self.ua_combo.append("default", "Standard UA")
+        self.ua_combo.append("mobile", "Mobile (iPhone)")
+        self.ua_combo.append("bot", "Googlebot")
+        self.ua_combo.set_active(0)
+        self.ua_combo.connect("changed", self.on_ua_changed)
+        sec_box.pack_end(self.ua_combo, False, False, 0)
+        
         self.btn_webrtc = Gtk.ToggleButton(label="WebRTC Leak")
         self.btn_webrtc.connect("toggled", self.on_webrtc_toggled)
         self.btn_cors = Gtk.ToggleButton(label="CORS Strict")
@@ -358,6 +415,25 @@ class ZeroDevBrowser(Gtk.Window):
         self.dev_stack.connect("notify::visible-child", self.on_dev_stack_changed)
         return box
 
+    def on_ua_changed(self, combo):
+        val = combo.get_active_id()
+        ua = None
+        if val == "mobile":
+            ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+        elif val == "bot":
+            ua = "Googlebot/2.1 (+http://www.google.com/bot.html)"
+            
+        if hasattr(self, 'current_webview'):
+            settings = self.current_webview.get_settings()
+            if ua:
+                settings.set_user_agent(ua)
+            else:
+                # Need to clear it to default, WebKit doesn't have a direct "reset" so we reload the settings object completely
+                # Actually, setting it to None restores default in some bindings, but empty string is safer
+                settings.set_user_agent(None) 
+            self.current_webview.set_settings(settings)
+            self.current_webview.reload()
+
     def on_dev_stack_changed(self, stack, param):
         name = stack.get_visible_child_name()
         if name == "cookies": self.refresh_cookies()
@@ -365,7 +441,9 @@ class ZeroDevBrowser(Gtk.Window):
         elif name == "source": self.on_fetch_source(None)
 
     def on_history_activated(self, treeview, path, column):
-        url = self.history_store[path][1]
+        # works for both history and bookmarks (since both store url in col 1)
+        model = treeview.get_model()
+        url = model[path][1]
         self.url_bar.set_text(url)
         self.on_url_activate(self.url_bar)
         
@@ -555,6 +633,13 @@ class ZeroDevBrowser(Gtk.Window):
         
         settings = webview.get_settings()
         settings.set_enable_developer_extras(True)
+        # Check current UA combo
+        ua_val = self.ua_combo.get_active_id() if hasattr(self, 'ua_combo') else 'default'
+        if ua_val == 'mobile':
+            settings.set_user_agent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1")
+        elif ua_val == 'bot':
+            settings.set_user_agent("Googlebot/2.1 (+http://www.google.com/bot.html)")
+            
         webview.set_settings(settings)
         
         if url == "zero://start":
