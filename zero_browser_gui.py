@@ -9,9 +9,11 @@ gi.require_version('WebKit2', '4.1')
 from gi.repository import Gtk, Gdk, GLib, Pango
 from gi.repository import WebKit2
 
-START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Browser Start</title><style>body { margin: 0; padding: 0; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; } .container { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); animation: fadein 0.5s ease-out; } @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } h1 { font-size: 48px; font-weight: 800; margin: 0 0 10px 0; background: linear-gradient(90deg, #4D90FE, #00C853); -webkit-background-clip: text; -webkit-text-fill-color: transparent; } p { color: #A0AAB5; font-size: 16px; margin-bottom: 30px; } .search-box { display: flex; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 10px 20px; margin-bottom: 30px; width: 400px; transition: all 0.3s ease; } .search-box:focus-within { border-color: #4D90FE; box-shadow: 0 0 15px rgba(77,144,254,0.2); } .search-box input { background: transparent; border: none; color: white; font-size: 16px; width: 100%; outline: none; } .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; } .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px 10px; text-decoration: none; color: white; font-size: 14px; font-weight: 500; transition: all 0.2s; } .card:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); border-color: rgba(255,255,255,0.2); }</style></head><body><div class="container"><h1 id="time">00:00</h1><p>Welcome to Zero Browser.</p><div class="search-box"><input type="text" id="q" placeholder="Search or enter URL..." autofocus></div><div class="grid"><a href="https://github.com" class="card">GitHub</a><a href="https://stackoverflow.com" class="card">StackOverflow</a><a href="https://youtube.com" class="card">YouTube</a><a href="zero://settings" class="card">Settings</a></div></div><script>function updateTime() { const now = new Date(); document.getElementById('time').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); } setInterval(updateTime, 1000); updateTime(); document.getElementById('q').addEventListener('keypress', function(e) { if(e.key === 'Enter') { let val = this.value; if(val.includes('.') && !val.includes(' ')) { if(!val.startsWith('http')) val = 'https://' + val; window.location.href = val; } else { window.location.href = 'zero://search?q=' + encodeURIComponent(val); } } });</script></body></html>"""
+START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Browser Start</title><style>body { margin: 0; padding: 0; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; } .container { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); animation: fadein 0.5s ease-out; } @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } h1 { font-size: 48px; font-weight: 800; margin: 0 0 10px 0; background: linear-gradient(90deg, #4D90FE, #00C853); -webkit-background-clip: text; -webkit-text-fill-color: transparent; } p { color: #A0AAB5; font-size: 16px; margin-bottom: 30px; } .search-box { display: flex; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 10px 20px; margin-bottom: 30px; width: 400px; transition: all 0.3s ease; } .search-box:focus-within { border-color: #4D90FE; box-shadow: 0 0 15px rgba(77,144,254,0.2); } .search-box input { background: transparent; border: none; color: white; font-size: 16px; width: 100%; outline: none; } .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; } .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px 10px; text-decoration: none; color: white; font-size: 14px; font-weight: 500; transition: all 0.2s; } .card:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); border-color: rgba(255,255,255,0.2); }</style></head><body><div class="container"><h1 id="time">00:00</h1><p>Welcome to Zero Browser.</p><div class="search-box"><input type="text" id="q" placeholder="Search or enter URL..." autofocus></div><div class="grid"><a href="https://github.com" class="card">GitHub</a><a href="https://stackoverflow.com" class="card">StackOverflow</a><a href="https://youtube.com" class="card">YouTube</a><a href="zero://settings" class="card">Settings</a><a href="zero://shortcuts" class="card">Shortcuts</a></div></div><script>function updateTime() { const now = new Date(); document.getElementById('time').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); } setInterval(updateTime, 1000); updateTime(); document.getElementById('q').addEventListener('keypress', function(e) { if(e.key === 'Enter') { let val = this.value; if(val.includes('.') && !val.includes(' ')) { if(!val.startsWith('http')) val = 'https://' + val; window.location.href = val; } else { window.location.href = 'zero://search?q=' + encodeURIComponent(val); } } });</script></body></html>"""
 
 SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } h2 { font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; } .btn { background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; } .btn:hover { background: #3b78e7; } .btn-danger { background: #d32f2f; } .btn-danger:hover { background: #b71c1c; } .info { color: #A0AAB5; margin-bottom: 20px; }</style></head><body><h1>Settings</h1><div class="section"><h2>Appearance</h2><p class="info">Customize how Zero Browser looks.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div><div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div></body></html>"""
+
+SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr></table></div></body></html>"""
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
 COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
@@ -118,6 +120,12 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.load_bookmarks()
         self.load_passwords()
+        
+        self.btn_reader = Gtk.Button()
+        self.btn_reader.add(Gtk.Image.new_from_icon_name("format-text-bold-symbolic", Gtk.IconSize.MENU))
+        self.btn_reader.set_tooltip_text("Toggle Reader Mode")
+        self.btn_reader.connect("clicked", self.on_reader_mode)
+        self.header.pack_end(self.btn_reader)
 
         self.btn_pip = Gtk.Button()
         self.btn_pip.add(Gtk.Image.new_from_icon_name("media-playback-start-symbolic", Gtk.IconSize.MENU))
@@ -382,6 +390,24 @@ class ZeroDevBrowser(Gtk.Window):
                     self.update_zoom_label()
                 return True
         return False
+
+    def on_reader_mode(self, btn):
+        if not hasattr(self, 'current_webview'): return
+        js = """
+        (function(){
+            if(window.__readerModeActive){
+                window.location.reload();
+                return;
+            }
+            let title = document.title;
+            let article = document.querySelector('article') || document.querySelector('main') || document.body;
+            let content = article.innerHTML;
+            document.head.innerHTML = '<style>body{max-width:800px;margin:40px auto;padding:20px;font-family:Georgia,serif;font-size:18px;line-height:1.8;color:#333;background:#fdfdfd;} img{max-width:100%;height:auto;} @media (prefers-color-scheme: dark) { body { color: #eee; background: #1a1a1a; } a { color: #8ab4f8; } }</style>';
+            document.body.innerHTML = '<h1 style="font-family:sans-serif;margin-bottom:30px;">' + title + '</h1>' + content;
+            window.__readerModeActive = true;
+        })();
+        """
+        self.current_webview.run_javascript(js, None, None, None)
 
     def on_pip_toggled(self, btn):
         if not hasattr(self, 'current_webview'): return
@@ -655,6 +681,7 @@ class ZeroDevBrowser(Gtk.Window):
         
         if url == "zero://start": webview.load_html(START_PAGE_HTML, "zero://start")
         elif url == "zero://settings": webview.load_html(SETTINGS_PAGE_HTML, "zero://settings")
+        elif url == "zero://shortcuts": webview.load_html(SHORTCUTS_PAGE_HTML, "zero://shortcuts")
         elif url.startswith("zero://search?q="):
             q = urllib.parse.unquote(url.split("=")[1])
             engine = self.search_engine_combo.get_active_id()
@@ -688,7 +715,7 @@ class ZeroDevBrowser(Gtk.Window):
         def on_uri(w, p):
             uri = w.get_uri() or ""
             if self.current_webview == w: self.url_bar.set_text(uri)
-            if uri != "zero://start" and uri != "zero://settings" and not uri.startswith("about:"): 
+            if not uri.startswith("zero://") and not uri.startswith("about:"): 
                 title = w.get_title() or "Untitled"
                 if not self.is_private:
                     self.add_to_popover(self.history_list, title, uri, "text-html-symbolic")
@@ -717,6 +744,9 @@ class ZeroDevBrowser(Gtk.Window):
             return
         elif url == "zero://settings":
             if hasattr(self, 'current_webview'): self.current_webview.load_html(SETTINGS_PAGE_HTML, "zero://settings")
+            return
+        elif url == "zero://shortcuts":
+            if hasattr(self, 'current_webview'): self.current_webview.load_html(SHORTCUTS_PAGE_HTML, "zero://shortcuts")
             return
             
         if url.startswith("/"):
