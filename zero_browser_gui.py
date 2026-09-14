@@ -2,7 +2,7 @@ import sys
 import gi
 import os
 import json
-import base64
+import urllib.parse
 from datetime import datetime
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
@@ -34,7 +34,7 @@ START_PAGE_HTML = """
         <h1 id="time">00:00</h1>
         <p>Welcome to Zero Browser.</p>
         <div class="search-box">
-            <input type="text" id="q" placeholder="Search the web or enter URL..." autofocus>
+            <input type="text" id="q" placeholder="Search or enter URL..." autofocus>
         </div>
         <div class="grid">
             <a href="https://github.com" class="card">GitHub</a>
@@ -50,7 +50,7 @@ START_PAGE_HTML = """
             if(e.key === 'Enter') {
                 let val = this.value;
                 if(val.includes('.') && !val.includes(' ')) { if(!val.startsWith('http')) val = 'https://' + val; window.location.href = val; } 
-                else { window.location.href = 'https://google.com/search?q=' + encodeURIComponent(val); }
+                else { window.location.href = 'zero://search?q=' + encodeURIComponent(val); }
             }
         });
     </script>
@@ -60,6 +60,12 @@ START_PAGE_HTML = """
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
 COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
+
+SEARCH_ENGINES = {
+    "google": "https://google.com/search?q=",
+    "ddg": "https://duckduckgo.com/?q=",
+    "bing": "https://www.bing.com/search?q="
+}
 
 class ZeroDevBrowser(Gtk.Window):
     def __init__(self):
@@ -82,6 +88,10 @@ class ZeroDevBrowser(Gtk.Window):
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.main_vbox)
         
+        # GLOBAL KEYBOARD SHORTCUTS
+        self.connect("key-press-event", self.on_key_press)
+        
+        # ================= HEADER BAR =================
         self.header = Gtk.HeaderBar()
         self.header.set_show_close_button(True)
         self.header.set_title("Zero Browser")
@@ -106,14 +116,27 @@ class ZeroDevBrowser(Gtk.Window):
         btn_forward.connect("clicked", lambda b: self.current_webview.go_forward() if hasattr(self, 'current_webview') else None)
         for b in (btn_back, btn_forward): self.header.pack_start(b)
 
+        # Center Search / URL Bar
+        center_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        
+        self.search_engine_combo = Gtk.ComboBoxText()
+        self.search_engine_combo.append("google", "Google")
+        self.search_engine_combo.append("ddg", "DuckDuckGo")
+        self.search_engine_combo.append("bing", "Bing")
+        self.search_engine_combo.set_active(0)
+        self.search_engine_combo.set_tooltip_text("Select Search Engine")
+        center_box.pack_start(self.search_engine_combo, False, False, 0)
+        
         self.url_bar = Gtk.Entry()
         self.url_bar.set_placeholder_text("Search or enter web address")
-        self.url_bar.set_width_chars(60)
+        self.url_bar.set_width_chars(50)
         self.url_bar.connect("activate", self.on_url_activate)
         self.url_bar.set_icon_from_icon_name(Gtk.EntryIconPosition.PRIMARY, "network-secure-symbolic")
         self.url_bar.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-refresh-symbolic")
         self.url_bar.connect("icon-press", lambda e, p, ev: self.current_webview.reload() if hasattr(self, 'current_webview') and p == Gtk.EntryIconPosition.SECONDARY else None)
-        self.header.set_custom_title(self.url_bar)
+        center_box.pack_start(self.url_bar, True, True, 0)
+        
+        self.header.set_custom_title(center_box)
 
         self.btn_pip = Gtk.Button()
         self.btn_pip.add(Gtk.Image.new_from_icon_name("media-playback-start-symbolic", Gtk.IconSize.MENU))
@@ -141,7 +164,7 @@ class ZeroDevBrowser(Gtk.Window):
 
         self.btn_newtab = Gtk.Button()
         self.btn_newtab.add(Gtk.Image.new_from_icon_name("tab-new-symbolic", Gtk.IconSize.MENU))
-        self.btn_newtab.set_tooltip_text("New Tab")
+        self.btn_newtab.set_tooltip_text("New Tab (Ctrl+T)")
         self.btn_newtab.connect("clicked", lambda b: self.new_tab("zero://start"))
         self.header.pack_end(self.btn_newtab)
 
@@ -179,6 +202,23 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.adblock_enabled = True
         self.new_tab("zero://start")
+
+    def on_key_press(self, widget, event):
+        if event.state & Gdk.ModifierType.CONTROL_MASK:
+            if event.keyval == Gdk.KEY_t:
+                self.new_tab("zero://start")
+                return True
+            elif event.keyval == Gdk.KEY_w:
+                if hasattr(self, 'current_webview'):
+                    for wid, data in self.tabs_map.items():
+                        if data[0] == self.current_webview:
+                            self.close_tab(wid)
+                            break
+                return True
+            elif event.keyval == Gdk.KEY_l:
+                self.url_bar.grab_focus()
+                return True
+        return False
 
     def on_pip_toggled(self, btn):
         if not hasattr(self, 'current_webview'): return
@@ -394,6 +434,10 @@ class ZeroDevBrowser(Gtk.Window):
         webview.set_settings(settings)
         
         if url == "zero://start": webview.load_html(START_PAGE_HTML, "zero://start")
+        elif url.startswith("zero://search?q="):
+            q = urllib.parse.unquote(url.split("=")[1])
+            engine = self.search_engine_combo.get_active_id()
+            webview.load_uri(SEARCH_ENGINES[engine] + urllib.parse.quote(q))
         else: webview.load_uri(url)
             
         scrolled = Gtk.ScrolledWindow(); scrolled.add(webview)
@@ -432,7 +476,12 @@ class ZeroDevBrowser(Gtk.Window):
         if url == "zero://start":
             if hasattr(self, 'current_webview'): self.current_webview.load_html(START_PAGE_HTML, "zero://start")
             return
-        if not url.startswith("http"): url = "https://" + url
+        if not url.startswith("http") and not url.startswith("zero://"): 
+            if "." in url and " " not in url:
+                url = "https://" + url
+            else:
+                engine = self.search_engine_combo.get_active_id()
+                url = SEARCH_ENGINES[engine] + urllib.parse.quote(url)
         if hasattr(self, 'current_webview'): self.current_webview.load_uri(url)
 
     def setup_css(self):
