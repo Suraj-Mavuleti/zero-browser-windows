@@ -13,7 +13,7 @@ START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zer
 
 SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } h2 { font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; } .btn { background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; } .btn:hover { background: #3b78e7; } .btn-danger { background: #d32f2f; } .btn-danger:hover { background: #b71c1c; } .info { color: #A0AAB5; margin-bottom: 20px; }</style></head><body><h1>Settings</h1><div class="section"><h2>Appearance</h2><p class="info">Customize how Zero Browser looks.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div><div class="section"><h2>Privacy & Security</h2><p class="info">Prevent WebRTC IP leaks by disabling Media Stream APIs.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_webrtc')">Toggle Media/WebRTC Protection</button></div><div class="section"><h2>Search Engines</h2><p class="info">Configure your custom search engines via the JSON config file.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_search_config')">Edit Search Engines Config</button></div><div class="section"><h2>User Scripts</h2><p class="info">Load custom JS on all pages. Open the scripts folder.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_userscripts_dir')">Open User Scripts Folder</button></div><div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div></body></html>"""
 
-SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Command Palette</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>F</kbd></td><td>Find in Page</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr><tr><td>Middle Click Tab</td><td>Close Tab</td></tr><tr><td>Right Click Tab</td><td>Open Context Menu</td></tr></table></div></body></html>"""
+SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Tab</kbd></td><td>Visual Tab Switcher</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Command Palette</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>F</kbd></td><td>Find in Page</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr><tr><td>Middle Click Tab</td><td>Close Tab</td></tr><tr><td>Right Click Tab</td><td>Context Menu (Duplicate, Close Others, Detach PiP)</td></tr></table></div></body></html>"""
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
 COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
@@ -79,6 +79,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.main_vbox)
         self.connect("key-press-event", self.on_key_press)
+        self.connect("key-release-event", self.on_key_release)
         
         # ================= HEADER BAR =================
         self.header = Gtk.HeaderBar()
@@ -239,6 +240,75 @@ class ZeroDevBrowser(Gtk.Window):
         self.adblock_enabled = True
         self.devtools_window = None
         self.load_session()
+
+    # ================= TAB SWITCHER =================
+    def build_tab_switcher(self):
+        self.tab_switcher_window = Gtk.Window(title="Tab Switcher")
+        self.tab_switcher_window.set_decorated(False)
+        self.tab_switcher_window.set_default_size(600, 300)
+        self.tab_switcher_window.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
+        self.tab_switcher_window.set_transient_for(self)
+        self.tab_switcher_window.set_modal(True)
+        ctx = self.tab_switcher_window.get_style_context()
+        ctx.add_class("cmd-palette")
+        
+        scroll = Gtk.ScrolledWindow()
+        self.switcher_listbox = Gtk.ListBox()
+        scroll.add(self.switcher_listbox)
+        self.tab_switcher_window.add(scroll)
+        
+    def show_tab_switcher(self):
+        if not hasattr(self, 'tab_switcher_window'): self.build_tab_switcher()
+        for c in self.switcher_listbox.get_children(): self.switcher_listbox.remove(c)
+        
+        self.switcher_order = []
+        for wid, data in self.tabs_map.items():
+            if data[2] == self.current_workspace:
+                wv = data[0]
+                row = Gtk.ListBoxRow(); row.wid_data = wid
+                hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+                hbox.set_margin_top(15); hbox.set_margin_bottom(15); hbox.set_margin_start(15)
+                icon = Gtk.Image.new_from_icon_name("text-html-symbolic", Gtk.IconSize.MENU)
+                vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                lbl1 = Gtk.Label(label=wv.get_title() or "Untitled"); lbl1.set_halign(Gtk.Align.START); lbl1.get_style_context().add_class("bold-label")
+                lbl2 = Gtk.Label(label=wv.get_uri() or ""); lbl2.set_halign(Gtk.Align.START); lbl2.get_style_context().add_class("dim-label"); lbl2.set_ellipsize(Pango.EllipsizeMode.END)
+                vbox.pack_start(lbl1, False, False, 2); vbox.pack_start(lbl2, False, False, 0)
+                hbox.pack_start(icon, False, False, 0); hbox.pack_start(vbox, True, True, 0)
+                row.add(hbox); row.show_all()
+                self.switcher_listbox.add(row)
+                self.switcher_order.append(row)
+                
+        self.tab_switcher_window.show_all()
+        
+        current_idx = 0
+        for i, row in enumerate(self.switcher_order):
+            if hasattr(self, 'current_webview') and self.tabs_map[row.wid_data][0] == self.current_webview:
+                current_idx = i
+                break
+        
+        next_idx = (current_idx + 1) % len(self.switcher_order) if self.switcher_order else 0
+        if self.switcher_order:
+            self.switcher_listbox.select_row(self.switcher_order[next_idx])
+            
+    def cycle_tab_switcher(self):
+        if not hasattr(self, 'switcher_order') or not self.switcher_order: return
+        selected = self.switcher_listbox.get_selected_row()
+        if not selected: return
+        try:
+            idx = self.switcher_order.index(selected)
+            next_idx = (idx + 1) % len(self.switcher_order)
+            self.switcher_listbox.select_row(self.switcher_order[next_idx])
+        except: pass
+
+    def activate_selected_switcher_tab(self):
+        selected = self.switcher_listbox.get_selected_row()
+        if selected and hasattr(selected, 'wid_data'):
+            wid = selected.wid_data
+            if wid in self.tabs_map:
+                row = self.tabs_map[wid][1]
+                self.tab_listbox.select_row(row)
+                self.on_tab_clicked(self.tab_listbox, row)
+
 
     # ================= SITE PERMISSIONS =================
     def load_site_permissions(self):
@@ -693,7 +763,13 @@ class ZeroDevBrowser(Gtk.Window):
 
     def on_key_press(self, widget, event):
         if event.state & Gdk.ModifierType.CONTROL_MASK:
-            if event.keyval == Gdk.KEY_t:
+            if event.keyval == Gdk.KEY_Tab or event.keyval == Gdk.KEY_ISO_Left_Tab:
+                if hasattr(self, 'tab_switcher_window') and self.tab_switcher_window.get_visible():
+                    self.cycle_tab_switcher()
+                else:
+                    self.show_tab_switcher()
+                return True
+            elif event.keyval == Gdk.KEY_t:
                 self.new_tab("zero://start")
                 return True
             elif event.keyval == Gdk.KEY_w:
@@ -732,6 +808,13 @@ class ZeroDevBrowser(Gtk.Window):
             if self.find_revealer.get_reveal_child():
                 self.on_find_close(None)
                 return True
+        return False
+
+    def on_key_release(self, widget, event):
+        if event.keyval in (Gdk.KEY_Control_L, Gdk.KEY_Control_R):
+            if hasattr(self, 'tab_switcher_window') and self.tab_switcher_window.get_visible():
+                self.tab_switcher_window.hide()
+                self.activate_selected_switcher_tab()
         return False
 
     def on_reader_mode(self, btn):
@@ -831,7 +914,11 @@ class ZeroDevBrowser(Gtk.Window):
     def close_tab(self, wid, btn=None):
         if wid in self.tabs_map:
             wv, row, ws = self.tabs_map[wid]
-            self.tab_listbox.remove(row); self.tab_stack.remove(self.tab_stack.get_child_by_name(wid)); wv.destroy(); del self.tabs_map[wid]
+            self.tab_listbox.remove(row)
+            if wv.get_parent():
+                self.tab_stack.remove(wv.get_parent())
+            wv.destroy()
+            del self.tabs_map[wid]
             
             # Find next visible tab in current workspace
             next_visible = None
@@ -843,6 +930,39 @@ class ZeroDevBrowser(Gtk.Window):
             if next_visible:
                 self.tab_listbox.select_row(next_visible); self.on_tab_clicked(self.tab_listbox, next_visible)
             else: self.new_tab("zero://start")
+
+    def popout_tab(self, wid):
+        if wid in self.tabs_map:
+            wv, row, ws = self.tabs_map[wid]
+            parent = wv.get_parent()
+            if parent: self.tab_stack.remove(parent)
+            
+            popout_win = Gtk.Window(title=wv.get_title() or "PiP - Zero Browser")
+            popout_win.set_default_size(500, 350)
+            popout_win.set_keep_above(True)
+            popout_win.set_type_hint(Gdk.WindowTypeHint.UTILITY)
+            
+            hb = Gtk.HeaderBar()
+            hb.set_show_close_button(True)
+            hb.set_title(wv.get_title() or "PiP")
+            popout_win.set_titlebar(hb)
+            
+            scroll = Gtk.ScrolledWindow()
+            scroll.add(wv)
+            popout_win.add(scroll)
+            popout_win.show_all()
+            
+            def on_popout_close(w, e):
+                popout_win.remove(scroll)
+                scroll.remove(wv)
+                self.tab_stack.add_named(scroll, wid)
+                scroll.add(wv)
+                self.tab_stack.show_all()
+                if hasattr(self, 'current_webview') and self.current_webview == wv:
+                    self.tab_stack.set_visible_child_name(wid)
+                return False
+                
+            popout_win.connect("delete-event", on_popout_close)
 
     def on_devtools_toggled(self, btn):
         if not self.devtools_window:
@@ -1141,6 +1261,10 @@ class ZeroDevBrowser(Gtk.Window):
                 item_close_others.connect("activate", close_others)
                 menu.append(item_close_others)
                 
+                item_popout = Gtk.MenuItem(label="Pop-out Window (PiP)")
+                item_popout.connect("activate", lambda w: self.popout_tab(wid))
+                menu.append(item_popout)
+                
                 menu.show_all()
                 menu.popup_at_pointer(event)
                 
@@ -1208,7 +1332,7 @@ class ZeroDevBrowser(Gtk.Window):
             .vertical-tabs-list row:hover { background: rgba(255,255,255,0.05); }
             .vertical-tabs-list row:selected { background: rgba(77,144,254,0.15); border: 1px solid rgba(77,144,254,0.3); }
             .private-header { background: #4a148c; border-bottom: 2px solid #8e24aa; }
-            .cmd-palette { border: 1px solid #4D90FE; border-radius: 8px; }
+            .cmd-palette { border: 1px solid #4D90FE; border-radius: 8px; background: rgba(30, 30, 30, 0.95); }
             .find-bar { background: rgba(40,40,40,0.95); padding: 5px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
         '''
         provider = Gtk.CssProvider(); provider.load_from_data(css)
