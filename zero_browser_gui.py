@@ -13,7 +13,7 @@ START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zer
 
 SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } h2 { font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; } .btn { background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; } .btn:hover { background: #3b78e7; } .btn-danger { background: #d32f2f; } .btn-danger:hover { background: #b71c1c; } .info { color: #A0AAB5; margin-bottom: 20px; }</style></head><body><h1>Settings</h1><div class="section"><h2>Appearance</h2><p class="info">Customize how Zero Browser looks.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div><div class="section"><h2>Privacy & Security</h2><p class="info">Prevent WebRTC IP leaks by disabling Media Stream APIs.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_webrtc')">Toggle Media/WebRTC Protection</button></div><div class="section"><h2>Search Engines</h2><p class="info">Configure your custom search engines via the JSON config file.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_search_config')">Edit Search Engines Config</button></div><div class="section"><h2>User Scripts</h2><p class="info">Load custom JS on all pages. Open the scripts folder.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_userscripts_dir')">Open User Scripts Folder</button></div><div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div></body></html>"""
 
-SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Tab</kbd></td><td>Visual Tab Switcher</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Command Palette</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>F</kbd></td><td>Find in Page</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr><tr><td>Middle Click Tab</td><td>Close Tab</td></tr><tr><td>Right Click Tab</td><td>Context Menu (Duplicate, Close Others, Detach PiP)</td></tr></table></div></body></html>"""
+SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Tab</kbd></td><td>Visual Tab Switcher</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Command Palette</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>F</kbd></td><td>Find in Page</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr><tr><td>Middle Click Tab</td><td>Close Tab</td></tr><tr><td>Right Click Tab</td><td>Context Menu (Duplicate, Close Others, Detach PiP)</td></tr><tr><td>Mouse Button 8/9</td><td>Navigate Back / Forward</td></tr></table></div></body></html>"""
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
 COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
@@ -80,6 +80,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.add(self.main_vbox)
         self.connect("key-press-event", self.on_key_press)
         self.connect("key-release-event", self.on_key_release)
+        self.connect("button-press-event", self.on_mouse_button_press)
         
         # ================= HEADER BAR =================
         self.header = Gtk.HeaderBar()
@@ -122,6 +123,18 @@ class ZeroDevBrowser(Gtk.Window):
         self.url_bar.set_icon_tooltip_text(Gtk.EntryIconPosition.PRIMARY, "Site Permissions")
         self.url_bar.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-refresh-symbolic")
         self.url_bar.connect("icon-press", self.on_url_icon_press)
+        
+        # Smart URL Bar Autosuggestion (Gtk.EntryCompletion)
+        self.url_liststore = Gtk.ListStore(str)
+        self.url_completion = Gtk.EntryCompletion()
+        self.url_completion.set_model(self.url_liststore)
+        self.url_completion.set_text_column(0)
+        self.url_completion.set_inline_completion(True)
+        self.url_completion.set_popup_completion(True)
+        self.url_completion.set_match_func(self.url_completion_match_func)
+        self.url_completion.connect("match-selected", self.on_url_match_selected)
+        self.url_bar.set_completion(self.url_completion)
+        
         center_box.pack_start(self.url_bar, True, True, 0)
         
         self.lbl_zoom = Gtk.Label(label="")
@@ -239,7 +252,47 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.adblock_enabled = True
         self.devtools_window = None
+        
+        self.rebuild_url_completion()
         self.load_session()
+
+    # ================= SMART URL COMPLETION =================
+    def rebuild_url_completion(self):
+        self.url_liststore.clear()
+        added = set()
+        
+        for row in self.bookmarks_list.get_children():
+            url = getattr(row, 'url_data', None)
+            if url and url not in added:
+                self.url_liststore.append([url])
+                added.add(url)
+                
+        for row in self.history_list.get_children():
+            url = getattr(row, 'url_data', None)
+            if url and url not in added:
+                self.url_liststore.append([url])
+                added.add(url)
+
+    def url_completion_match_func(self, completion, key, iter):
+        model = completion.get_model()
+        url = model.get_value(iter, 0)
+        return key.lower() in url.lower() if url else False
+        
+    def on_url_match_selected(self, completion, model, iter):
+        url = model.get_value(iter, 0)
+        self.url_bar.set_text(url)
+        self.on_url_activate(self.url_bar)
+        return True
+
+    # ================= HARDWARE MOUSE BUTTONS =================
+    def on_mouse_button_press(self, widget, event):
+        if event.button == 8: # Back
+            if hasattr(self, 'current_webview'): self.current_webview.go_back()
+            return True
+        elif event.button == 9: # Forward
+            if hasattr(self, 'current_webview'): self.current_webview.go_forward()
+            return True
+        return False
 
     # ================= TAB SWITCHER =================
     def build_tab_switcher(self):
@@ -588,10 +641,12 @@ class ZeroDevBrowser(Gtk.Window):
         msg = js_result.get_js_value().to_string()
         if msg == "clear_history":
             for c in self.history_list.get_children(): self.history_list.remove(c)
+            self.rebuild_url_completion()
             print("[*] History cleared.")
         elif msg == "clear_bookmarks":
             for c in self.bookmarks_list.get_children(): self.bookmarks_list.remove(c)
             if os.path.exists(self.bm_path): os.remove(self.bm_path)
+            self.rebuild_url_completion()
             print("[*] Bookmarks cleared.")
         elif msg == "clear_passwords":
             for c in self.passwords_list.get_children(): self.passwords_list.remove(c)
@@ -685,6 +740,7 @@ class ZeroDevBrowser(Gtk.Window):
         row.add(hbox); row.show_all()
         row.url_data = sub_text
         listbox.insert(row, 0)
+        self.rebuild_url_completion()
 
     def on_popover_row_clicked(self, listbox, row):
         if hasattr(row, 'url_data'):
