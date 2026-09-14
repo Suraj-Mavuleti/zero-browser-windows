@@ -2,11 +2,162 @@ import sys
 import gi
 import os
 import json
+import base64
 from datetime import datetime
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
 from gi.repository import Gtk, Gdk, GLib
 from gi.repository import WebKit2
+
+START_PAGE_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Zero Browser Start</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0f1115;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            animation: fadein 0.5s ease-out;
+        }
+        @keyframes fadein {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-size: 48px;
+            font-weight: 800;
+            margin: 0 0 10px 0;
+            background: linear-gradient(90deg, #4D90FE, #00C853);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        p {
+            color: #A0AAB5;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 30px;
+            padding: 10px 20px;
+            margin-bottom: 30px;
+            width: 400px;
+            transition: all 0.3s ease;
+        }
+        .search-box:focus-within {
+            border-color: #4D90FE;
+            box-shadow: 0 0 15px rgba(77,144,254,0.2);
+        }
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 16px;
+            width: 100%;
+            outline: none;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px 10px;
+            text-decoration: none;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .card:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="time">00:00</h1>
+        <p>Welcome to Zero Browser.</p>
+        <div class="search-box">
+            <input type="text" id="q" placeholder="Search the web or enter URL..." autofocus>
+        </div>
+        <div class="grid">
+            <a href="https://github.com" class="card">GitHub</a>
+            <a href="https://stackoverflow.com" class="card">StackOverflow</a>
+            <a href="https://youtube.com" class="card">YouTube</a>
+            <a href="https://x.com" class="card">X (Twitter)</a>
+        </div>
+    </div>
+    <script>
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('time').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+        
+        document.getElementById('q').addEventListener('keypress', function(e) {
+            if(e.key === 'Enter') {
+                let val = this.value;
+                if(val.includes('.') && !val.includes(' ')) {
+                    if(!val.startsWith('http')) val = 'https://' + val;
+                    window.location.href = val;
+                } else {
+                    window.location.href = 'https://google.com/search?q=' + encodeURIComponent(val);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+
+SCROLLBAR_CSS = """
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: #12141a;
+}
+::-webkit-scrollbar-thumb {
+    background: #3a3f4b;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #4d90fe;
+}
+::-webkit-scrollbar-corner {
+    background: #12141a;
+}
+"""
 
 class ZeroDevBrowser(Gtk.Window):
     def __init__(self):
@@ -67,7 +218,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_newtab = Gtk.Button()
         self.btn_newtab.add(Gtk.Image.new_from_icon_name("tab-new-symbolic", Gtk.IconSize.MENU))
         self.btn_newtab.set_tooltip_text("New Tab")
-        self.btn_newtab.connect("clicked", lambda b: self.new_tab("https://google.com"))
+        self.btn_newtab.connect("clicked", lambda b: self.new_tab("zero://start"))
         self.header.pack_end(self.btn_newtab)
 
         # ================= MAIN WORKSPACE (Paned) =================
@@ -98,11 +249,16 @@ class ZeroDevBrowser(Gtk.Window):
         self.devtools_revealer.add(self.devtools_box)
         self.vpaned.pack2(self.devtools_revealer, False, False)
         
-        # WebKit Download Context
+        # WebKit Download & Content Context
         self.web_ctx = WebKit2.WebContext.new_ephemeral()
         self.web_ctx.connect("download-started", self.on_download_started)
         
-        self.new_tab("https://github.com")
+        # Inject custom scrollbar globally
+        self.user_content = WebKit2.UserContentManager.new()
+        style_sheet = WebKit2.UserStyleSheet(SCROLLBAR_CSS, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserStyleLevel.USER, None, None)
+        self.user_content.add_style_sheet(style_sheet)
+        
+        self.new_tab("zero://start")
 
     def on_sidebar_toggled(self, btn):
         self.sidebar_revealer.set_reveal_child(btn.get_active())
@@ -394,14 +550,18 @@ class ZeroDevBrowser(Gtk.Window):
         entry.set_text("")
 
     def new_tab(self, url):
-        webview = WebKit2.WebView.new_with_context(self.web_ctx)
+        webview = WebKit2.WebView.new_with_user_content_manager(self.user_content)
         webview.connect("resource-load-started", self.on_resource_load)
         
         settings = webview.get_settings()
         settings.set_enable_developer_extras(True)
         webview.set_settings(settings)
         
-        webview.load_uri(url)
+        if url == "zero://start":
+            webview.load_html(START_PAGE_HTML, "zero://start")
+        else:
+            webview.load_uri(url)
+            
         scrolled = Gtk.ScrolledWindow(); scrolled.add(webview)
         
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
@@ -417,8 +577,9 @@ class ZeroDevBrowser(Gtk.Window):
         def on_uri(w, p):
             uri = w.get_uri() or ""
             self.url_bar.set_text(uri)
-            time_str = datetime.now().strftime("%H:%M")
-            self.history_store.append([time_str, uri])
+            if uri != "zero://start" and not uri.startswith("about:"):
+                time_str = datetime.now().strftime("%H:%M")
+                self.history_store.append([time_str, uri])
             
         webview.connect("notify::uri", on_uri)
         webview.connect("notify::title", lambda w, p: label.set_text(w.get_title() or "Untitled"))
@@ -426,6 +587,9 @@ class ZeroDevBrowser(Gtk.Window):
 
     def on_url_activate(self, entry):
         url = entry.get_text()
+        if url == "zero://start":
+            if hasattr(self, 'current_webview'): self.current_webview.load_html(START_PAGE_HTML, "zero://start")
+            return
         if not url.startswith("http"): url = "https://" + url
         if hasattr(self, 'current_webview'): self.current_webview.load_uri(url)
 
