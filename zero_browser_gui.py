@@ -13,7 +13,7 @@ START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zer
 
 SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } h2 { font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; } .btn { background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; } .btn:hover { background: #3b78e7; } .btn-danger { background: #d32f2f; } .btn-danger:hover { background: #b71c1c; } .info { color: #A0AAB5; margin-bottom: 20px; }</style></head><body><h1>Settings</h1><div class="section"><h2>Appearance</h2><p class="info">Customize how Zero Browser looks.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div><div class="section"><h2>Search Engines</h2><p class="info">Configure your custom search engines via the JSON config file.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_search_config')">Edit Search Engines Config</button></div><div class="section"><h2>User Scripts</h2><p class="info">Load custom JS on all pages. Open the scripts folder.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_userscripts_dir')">Open User Scripts Folder</button></div><div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div></body></html>"""
 
-SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Command Palette</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr><tr><td>Middle Click Tab</td><td>Close Tab</td></tr><tr><td>Right Click Tab</td><td>Duplicate Tab</td></tr></table></div></body></html>"""
+SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Command Palette</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr><tr><td>Middle Click Tab</td><td>Close Tab</td></tr><tr><td>Right Click Tab</td><td>Open Context Menu</td></tr></table></div></body></html>"""
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
 COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
@@ -36,6 +36,13 @@ document.addEventListener('submit', function(e) {
     }
 });
 """
+
+def format_bytes(b):
+    for x in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if b < 1024.0:
+            return "%3.1f %s" % (b, x)
+        b /= 1024.0
+    return "%3.1f PB" % b
 
 class ZeroDevBrowser(Gtk.Window):
     def __init__(self):
@@ -242,7 +249,6 @@ class ZeroDevBrowser(Gtk.Window):
             self.cmd_window.hide()
             return True
         elif e.keyval == Gdk.KEY_Down:
-            # Move focus to listbox
             self.cmd_listbox.grab_focus()
             return True
         return False
@@ -277,9 +283,7 @@ class ZeroDevBrowser(Gtk.Window):
                 if cmd_q in c[0].lower():
                     add_item(c[0], c[1], c[2])
         else:
-            # Search bookmarks and history
             count = 0
-            # Bookmarks
             for row in self.bookmarks_list.get_children():
                 vbox = row.get_child().get_children()[1]
                 title = vbox.get_children()[0].get_text()
@@ -288,7 +292,6 @@ class ZeroDevBrowser(Gtk.Window):
                     add_item(title, url, "bookmark-new-symbolic")
                     count += 1
                 if count > 5: break
-            # History
             count = 0
             for row in self.history_list.get_children():
                 vbox = row.get_child().get_children()[1]
@@ -786,7 +789,15 @@ class ZeroDevBrowser(Gtk.Window):
         def update_progress(dl, l):
             frac = dl.get_estimated_progress()
             pbar.set_fraction(frac)
-            lbl_status.set_text(f"{int(frac * 100)}%")
+            req = dl.get_request()
+            res = dl.get_response()
+            if res:
+                content_length = res.get_content_length()
+                if content_length > 0:
+                    received = int(content_length * frac)
+                    lbl_status.set_text(f"{format_bytes(received)} / {format_bytes(content_length)} ({int(frac * 100)}%)")
+                else:
+                    lbl_status.set_text(f"{int(frac * 100)}%")
             
         def finish_dl(dl):
             lbl_status.set_text("Finished")
@@ -881,9 +892,28 @@ class ZeroDevBrowser(Gtk.Window):
             except Exception as ex: buf.insert(buf.get_end_iter(), f"Error: {ex}\n>>> ")
         entry.set_text("")
 
+    def on_decide_policy(self, webview, decision, decision_type):
+        if decision_type == WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
+            request = decision.get_request()
+            uri = request.get_uri()
+            if uri and uri.startswith("file://") and uri.endswith(".md"):
+                path = urllib.parse.unquote(uri[7:])
+                if os.path.exists(path):
+                    try:
+                        with open(path, "r") as f:
+                            text = f.read()
+                        html = f"<html><head><style>{SCROLLBAR_CSS} body {{ background: #0f1115; color: #fff; padding: 40px; font-family: monospace; white-space: pre-wrap; font-size: 14px; line-height: 1.5; }}</style></head><body>{text.replace('<', '&lt;').replace('>', '&gt;')}</body></html>"
+                        webview.load_html(html, uri)
+                        decision.ignore()
+                        return True
+                    except Exception as e:
+                        print("Error loading markdown:", e)
+        return False
+
     def new_tab(self, url):
         webview = WebKit2.WebView.new_with_user_content_manager(self.user_content)
         webview.connect("resource-load-started", self.on_resource_load)
+        webview.connect("decide-policy", self.on_decide_policy)
         settings = webview.get_settings(); settings.set_enable_developer_extras(True)
         ua_val = self.ua_combo.get_active_id() if hasattr(self, 'ua_combo') else 'default'
         if ua_val == 'mobile': settings.set_user_agent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1")
@@ -927,8 +957,22 @@ class ZeroDevBrowser(Gtk.Window):
             if event.button == 2: # Middle click
                 self.close_tab(wid)
             elif event.button == 3: # Right click
-                if hasattr(self, 'current_webview'):
-                    self.new_tab(self.current_webview.get_uri())
+                menu = Gtk.Menu()
+                
+                item_dup = Gtk.MenuItem(label="Duplicate Tab")
+                item_dup.connect("activate", lambda w: self.new_tab(webview.get_uri()) if webview else None)
+                menu.append(item_dup)
+                
+                item_close_others = Gtk.MenuItem(label="Close Other Tabs")
+                def close_others(w):
+                    to_close = [k for k in self.tabs_map.keys() if k != wid]
+                    for k in to_close: self.close_tab(k)
+                item_close_others.connect("activate", close_others)
+                menu.append(item_close_others)
+                
+                menu.show_all()
+                menu.popup_at_pointer(event)
+                
         eb.connect("button-press-event", on_tab_button_press)
         
         self.tab_listbox.add(row); self.tabs_map[wid] = (webview, row, self.current_workspace); self.tab_stack.show_all()
