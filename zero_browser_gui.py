@@ -11,7 +11,7 @@ from gi.repository import WebKit2
 
 START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Browser Start</title><style>body { margin: 0; padding: 0; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; } .container { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); animation: fadein 0.5s ease-out; } @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } h1 { font-size: 48px; font-weight: 800; margin: 0 0 10px 0; background: linear-gradient(90deg, #4D90FE, #00C853); -webkit-background-clip: text; -webkit-text-fill-color: transparent; } p { color: #A0AAB5; font-size: 16px; margin-bottom: 30px; } .search-box { display: flex; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 10px 20px; margin-bottom: 30px; width: 400px; transition: all 0.3s ease; } .search-box:focus-within { border-color: #4D90FE; box-shadow: 0 0 15px rgba(77,144,254,0.2); } .search-box input { background: transparent; border: none; color: white; font-size: 16px; width: 100%; outline: none; } .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; } .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px 10px; text-decoration: none; color: white; font-size: 14px; font-weight: 500; transition: all 0.2s; } .card:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); border-color: rgba(255,255,255,0.2); }</style></head><body><div class="container"><h1 id="time">00:00</h1><p>Welcome to Zero Browser.</p><div class="search-box"><input type="text" id="q" placeholder="Search or enter URL..." autofocus></div><div class="grid"><a href="https://github.com" class="card">GitHub</a><a href="https://stackoverflow.com" class="card">StackOverflow</a><a href="https://youtube.com" class="card">YouTube</a><a href="zero://settings" class="card">Settings</a><a href="zero://shortcuts" class="card">Shortcuts</a></div></div><script>function updateTime() { const now = new Date(); document.getElementById('time').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); } setInterval(updateTime, 1000); updateTime(); document.getElementById('q').addEventListener('keypress', function(e) { if(e.key === 'Enter') { let val = this.value; if(val.includes('.') && !val.includes(' ')) { if(!val.startsWith('http')) val = 'https://' + val; window.location.href = val; } else { window.location.href = 'zero://search?q=' + encodeURIComponent(val); } } });</script></body></html>"""
 
-SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } h2 { font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; } .btn { background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; } .btn:hover { background: #3b78e7; } .btn-danger { background: #d32f2f; } .btn-danger:hover { background: #b71c1c; } .info { color: #A0AAB5; margin-bottom: 20px; }</style></head><body><h1>Settings</h1><div class="section"><h2>Appearance</h2><p class="info">Customize how Zero Browser looks.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div><div class="section"><h2>Search Engines</h2><p class="info">Configure your custom search engines via the JSON config file.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_search_config')">Edit Search Engines Config</button></div><div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div></body></html>"""
+SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } h2 { font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; } .btn { background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; } .btn:hover { background: #3b78e7; } .btn-danger { background: #d32f2f; } .btn-danger:hover { background: #b71c1c; } .info { color: #A0AAB5; margin-bottom: 20px; }</style></head><body><h1>Settings</h1><div class="section"><h2>Appearance</h2><p class="info">Customize how Zero Browser looks.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div><div class="section"><h2>Search Engines</h2><p class="info">Configure your custom search engines via the JSON config file.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_search_config')">Edit Search Engines Config</button></div><div class="section"><h2>User Scripts</h2><p class="info">Load custom JS on all pages. Open the scripts folder.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_userscripts_dir')">Open User Scripts Folder</button></div><div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div></body></html>"""
 
 SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr></table></div></body></html>"""
 
@@ -51,6 +51,9 @@ class ZeroDevBrowser(Gtk.Window):
         self.pw_path = os.path.join(os.path.expanduser("~"), ".zero_passwords.json")
         self.session_path = os.path.join(os.path.expanduser("~"), ".zero_session.json")
         self.search_engines_path = os.path.join(os.path.expanduser("~"), ".zero_search_engines.json")
+        self.userscripts_dir = os.path.join(os.path.expanduser("~"), ".zero_userscripts")
+        if not os.path.exists(self.userscripts_dir): os.makedirs(self.userscripts_dir)
+        
         self.passwords = {}
         self.is_private = False
         self.current_workspace = "default"
@@ -193,8 +196,23 @@ class ZeroDevBrowser(Gtk.Window):
         pw_script = WebKit2.UserScript(PW_INJECT_JS, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserScriptInjectionTime.END, None, None)
         self.user_content.add_script(pw_script)
         
+        self.load_userscripts()
+        
         self.adblock_enabled = True
+        self.devtools_window = None
         self.load_session()
+
+    def load_userscripts(self):
+        for f in os.listdir(self.userscripts_dir):
+            if f.endswith(".js"):
+                try:
+                    with open(os.path.join(self.userscripts_dir, f), "r") as script_file:
+                        content = script_file.read()
+                        user_script = WebKit2.UserScript(content, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserScriptInjectionTime.END, None, None)
+                        self.user_content.add_script(user_script)
+                        print(f"[*] Loaded User Script: {f}")
+                except Exception as e:
+                    print(f"Error loading {f}:", e)
 
     def load_search_engines(self):
         if not os.path.exists(self.search_engines_path):
@@ -254,6 +272,8 @@ class ZeroDevBrowser(Gtk.Window):
             print(f"[*] Theme switched to {'Light' if is_dark else 'Dark'}")
         elif msg == "open_search_config":
             os.system(f"xdg-open '{self.search_engines_path}'")
+        elif msg == "open_userscripts_dir":
+            os.system(f"xdg-open '{self.userscripts_dir}'")
 
     def on_private_toggled(self, btn):
         self.is_private = btn.get_active()
@@ -536,7 +556,9 @@ class ZeroDevBrowser(Gtk.Window):
                 self.tab_listbox.select_row(next_visible); self.on_tab_clicked(self.tab_listbox, next_visible)
             else: self.new_tab("zero://start")
 
-    def on_devtools_toggled(self, btn): self.devtools_revealer.set_reveal_child(btn.get_active())
+    def on_devtools_toggled(self, btn):
+        if not self.devtools_window:
+            self.devtools_revealer.set_reveal_child(btn.get_active())
 
     def build_devtools(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); box.set_size_request(-1, 280)
@@ -548,6 +570,9 @@ class ZeroDevBrowser(Gtk.Window):
         sec_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         self.btn_adblock = Gtk.ToggleButton(label="Adblock ON"); self.btn_adblock.set_active(True); self.btn_adblock.connect("toggled", self.on_adblock_toggled); sec_box.pack_start(self.btn_adblock, False, False, 0)
         self.ua_combo = Gtk.ComboBoxText(); self.ua_combo.append("default", "Standard UA"); self.ua_combo.append("mobile", "Mobile (iPhone)"); self.ua_combo.append("bot", "Googlebot"); self.ua_combo.set_active(0); self.ua_combo.connect("changed", self.on_ua_changed); sec_box.pack_end(self.ua_combo, False, False, 0)
+        
+        # Detach button
+        btn_detach = Gtk.Button(); btn_detach.add(Gtk.Image.new_from_icon_name("view-restore-symbolic", Gtk.IconSize.MENU)); btn_detach.set_tooltip_text("Detach to separate window"); btn_detach.connect("clicked", self.on_detach_devtools); sec_box.pack_end(btn_detach, False, False, 0)
         
         ti_sec = Gtk.ToolItem(); ti_sec.set_expand(True); ti_sec.add(sec_box); toolbar.insert(ti_sec, 1)
         box.pack_start(toolbar, False, False, 0); box.pack_start(self.dev_stack, True, True, 0)
@@ -563,6 +588,26 @@ class ZeroDevBrowser(Gtk.Window):
         self.dev_stack.add_titled(scroll, "payloads", "Payloads")
         
         return box
+
+    def on_detach_devtools(self, btn):
+        if self.devtools_window:
+            # Re-attach
+            self.devtools_window.remove(self.devtools_box)
+            self.devtools_window.destroy()
+            self.devtools_window = None
+            self.devtools_revealer.add(self.devtools_box)
+            self.devtools_revealer.set_reveal_child(self.btn_devtools.get_active())
+            btn.set_image(Gtk.Image.new_from_icon_name("view-restore-symbolic", Gtk.IconSize.MENU))
+        else:
+            # Detach
+            self.devtools_revealer.set_reveal_child(False)
+            self.devtools_revealer.remove(self.devtools_box)
+            self.devtools_window = Gtk.Window(title="Zero Hacker Tools")
+            self.devtools_window.set_default_size(800, 400)
+            self.devtools_window.add(self.devtools_box)
+            self.devtools_window.connect("delete-event", lambda w, e: self.on_detach_devtools(btn) or True)
+            self.devtools_window.show_all()
+            btn.set_image(Gtk.Image.new_from_icon_name("view-fullscreen-symbolic", Gtk.IconSize.MENU))
 
     def on_adblock_toggled(self, btn):
         self.adblock_enabled = btn.get_active(); btn.set_label("Adblock ON" if self.adblock_enabled else "Adblock OFF")
