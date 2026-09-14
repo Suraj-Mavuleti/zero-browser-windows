@@ -13,7 +13,7 @@ START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zer
 
 SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } h2 { font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; } .btn { background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; } .btn:hover { background: #3b78e7; } .btn-danger { background: #d32f2f; } .btn-danger:hover { background: #b71c1c; } .info { color: #A0AAB5; margin-bottom: 20px; }</style></head><body><h1>Settings</h1><div class="section"><h2>Appearance</h2><p class="info">Customize how Zero Browser looks.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div><div class="section"><h2>Search Engines</h2><p class="info">Configure your custom search engines via the JSON config file.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_search_config')">Edit Search Engines Config</button></div><div class="section"><h2>User Scripts</h2><p class="info">Load custom JS on all pages. Open the scripts folder.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_userscripts_dir')">Open User Scripts Folder</button></div><div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div></body></html>"""
 
-SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr></table></div></body></html>"""
+SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Command Palette</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr><tr><td>Middle Click Tab</td><td>Close Tab</td></tr><tr><td>Right Click Tab</td><td>Duplicate Tab</td></tr></table></div></body></html>"""
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
 COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
@@ -201,6 +201,125 @@ class ZeroDevBrowser(Gtk.Window):
         self.adblock_enabled = True
         self.devtools_window = None
         self.load_session()
+
+    def build_command_palette(self):
+        self.cmd_window = Gtk.Window(title="Command Palette")
+        self.cmd_window.set_decorated(False)
+        self.cmd_window.set_default_size(600, 400)
+        self.cmd_window.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
+        self.cmd_window.set_transient_for(self)
+        self.cmd_window.set_modal(True)
+        ctx = self.cmd_window.get_style_context()
+        ctx.add_class("cmd-palette")
+        
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.cmd_window.add(vbox)
+        
+        self.cmd_entry = Gtk.SearchEntry()
+        self.cmd_entry.set_placeholder_text("Search bookmarks, history, or type '>' for commands...")
+        self.cmd_entry.set_margin_top(15); self.cmd_entry.set_margin_bottom(15); self.cmd_entry.set_margin_start(15); self.cmd_entry.set_margin_end(15)
+        self.cmd_entry.connect("changed", self.on_cmd_changed)
+        self.cmd_entry.connect("activate", self.on_cmd_activate)
+        vbox.pack_start(self.cmd_entry, False, False, 0)
+        
+        self.cmd_listbox = Gtk.ListBox()
+        self.cmd_listbox.connect("row-activated", self.on_cmd_row_activated)
+        scroll = Gtk.ScrolledWindow()
+        scroll.add(self.cmd_listbox)
+        vbox.pack_start(scroll, True, True, 0)
+        
+        self.cmd_window.connect("key-press-event", self.on_cmd_key)
+
+    def show_command_palette(self):
+        if not hasattr(self, 'cmd_window'): self.build_command_palette()
+        self.cmd_entry.set_text("")
+        self.on_cmd_changed(self.cmd_entry)
+        self.cmd_window.show_all()
+        self.cmd_entry.grab_focus()
+
+    def on_cmd_key(self, w, e):
+        if e.keyval == Gdk.KEY_Escape:
+            self.cmd_window.hide()
+            return True
+        elif e.keyval == Gdk.KEY_Down:
+            # Move focus to listbox
+            self.cmd_listbox.grab_focus()
+            return True
+        return False
+
+    def on_cmd_changed(self, entry):
+        q = entry.get_text().lower()
+        for c in self.cmd_listbox.get_children(): self.cmd_listbox.remove(c)
+        
+        def add_item(title, url, icon):
+            row = Gtk.ListBoxRow(); row.url_data = url
+            hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+            hbox.set_margin_top(8); hbox.set_margin_bottom(8); hbox.set_margin_start(10)
+            img = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.MENU)
+            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            l1 = Gtk.Label(label=title); l1.set_halign(Gtk.Align.START); l1.set_ellipsize(Pango.EllipsizeMode.END)
+            l2 = Gtk.Label(label=url); l2.set_halign(Gtk.Align.START); l2.set_ellipsize(Pango.EllipsizeMode.END); l2.get_style_context().add_class("dim-label")
+            vbox.pack_start(l1, False, False, 0); vbox.pack_start(l2, False, False, 0)
+            hbox.pack_start(img, False, False, 0); hbox.pack_start(vbox, True, True, 0)
+            row.add(hbox); row.show_all()
+            self.cmd_listbox.add(row)
+
+        if q.startswith(">"):
+            cmd_q = q[1:].strip()
+            commands = [
+                ("New Tab", "cmd:new_tab", "tab-new-symbolic"),
+                ("Settings", "zero://settings", "preferences-system-symbolic"),
+                ("Shortcuts", "zero://shortcuts", "help-keyboard-shortcuts-symbolic"),
+                ("Toggle Theme", "cmd:toggle_theme", "weather-clear-symbolic"),
+                ("Toggle Private Mode", "cmd:private_mode", "security-high-symbolic")
+            ]
+            for c in commands:
+                if cmd_q in c[0].lower():
+                    add_item(c[0], c[1], c[2])
+        else:
+            # Search bookmarks and history
+            count = 0
+            # Bookmarks
+            for row in self.bookmarks_list.get_children():
+                vbox = row.get_child().get_children()[1]
+                title = vbox.get_children()[0].get_text()
+                url = row.url_data
+                if q in title.lower() or q in url.lower():
+                    add_item(title, url, "bookmark-new-symbolic")
+                    count += 1
+                if count > 5: break
+            # History
+            count = 0
+            for row in self.history_list.get_children():
+                vbox = row.get_child().get_children()[1]
+                title = vbox.get_children()[0].get_text()
+                url = row.url_data
+                if q in title.lower() or q in url.lower():
+                    add_item(title, url, "document-open-recent-symbolic")
+                    count += 1
+                if count > 5: break
+
+    def on_cmd_activate(self, entry):
+        row = self.cmd_listbox.get_row_at_index(0)
+        if row: self.on_cmd_row_activated(self.cmd_listbox, row)
+
+    def on_cmd_row_activated(self, listbox, row):
+        url = getattr(row, 'url_data', '')
+        self.cmd_window.hide()
+        if url == "cmd:new_tab":
+            self.new_tab("zero://start")
+        elif url == "cmd:toggle_theme":
+            settings = Gtk.Settings.get_default()
+            is_dark = settings.get_property("gtk-application-prefer-dark-theme")
+            settings.set_property("gtk-application-prefer-dark-theme", not is_dark)
+        elif url == "cmd:private_mode":
+            self.btn_private.set_active(not self.btn_private.get_active())
+        elif url:
+            if hasattr(self, 'current_webview'):
+                self.current_webview.load_uri(url)
+            else:
+                self.new_tab(url)
+
 
     def load_userscripts(self):
         for f in os.listdir(self.userscripts_dir):
@@ -435,6 +554,9 @@ class ZeroDevBrowser(Gtk.Window):
             elif event.keyval == Gdk.KEY_l:
                 self.url_bar.grab_focus()
                 return True
+            elif event.keyval == Gdk.KEY_k:
+                self.show_command_palette()
+                return True
             elif event.keyval in (Gdk.KEY_plus, Gdk.KEY_equal):
                 if hasattr(self, 'current_webview'):
                     self.current_webview.set_zoom_level(self.current_webview.get_zoom_level() + 0.1)
@@ -571,6 +693,9 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_adblock = Gtk.ToggleButton(label="Adblock ON"); self.btn_adblock.set_active(True); self.btn_adblock.connect("toggled", self.on_adblock_toggled); sec_box.pack_start(self.btn_adblock, False, False, 0)
         self.ua_combo = Gtk.ComboBoxText(); self.ua_combo.append("default", "Standard UA"); self.ua_combo.append("mobile", "Mobile (iPhone)"); self.ua_combo.append("bot", "Googlebot"); self.ua_combo.set_active(0); self.ua_combo.connect("changed", self.on_ua_changed); sec_box.pack_end(self.ua_combo, False, False, 0)
         
+        # Native Inspector
+        btn_native = Gtk.Button(); btn_native.add(Gtk.Image.new_from_icon_name("applications-development-symbolic", Gtk.IconSize.MENU)); btn_native.set_tooltip_text("Open Native Web Inspector"); btn_native.connect("clicked", lambda b: self.current_webview.get_inspector().show() if hasattr(self, 'current_webview') else None); sec_box.pack_end(btn_native, False, False, 0)
+
         # Detach button
         btn_detach = Gtk.Button(); btn_detach.add(Gtk.Image.new_from_icon_name("view-restore-symbolic", Gtk.IconSize.MENU)); btn_detach.set_tooltip_text("Detach to separate window"); btn_detach.connect("clicked", self.on_detach_devtools); sec_box.pack_end(btn_detach, False, False, 0)
         
@@ -779,6 +904,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.tab_stack.add_named(scrolled, wid)
         
         row = Gtk.ListBoxRow(); row.set_name(wid)
+        eb = Gtk.EventBox()
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         hbox.set_margin_top(5); hbox.set_margin_bottom(5); hbox.set_margin_start(10); hbox.set_margin_end(5)
         icon = Gtk.Image.new_from_icon_name("text-html-symbolic", Gtk.IconSize.MENU)
@@ -793,7 +919,17 @@ class ZeroDevBrowser(Gtk.Window):
         btn_close.set_relief(Gtk.ReliefStyle.NONE); btn_close.connect("clicked", lambda b: self.close_tab(wid, b))
         
         hbox.pack_start(icon, False, False, 0); hbox.pack_start(label, True, True, 0); hbox.pack_end(btn_close, False, False, 0); hbox.pack_end(btn_mute, False, False, 0)
-        row.add(hbox); row.show_all()
+        eb.add(hbox)
+        row.add(eb)
+        row.show_all()
+        
+        def on_tab_button_press(widget, event):
+            if event.button == 2: # Middle click
+                self.close_tab(wid)
+            elif event.button == 3: # Right click
+                if hasattr(self, 'current_webview'):
+                    self.new_tab(self.current_webview.get_uri())
+        eb.connect("button-press-event", on_tab_button_press)
         
         self.tab_listbox.add(row); self.tabs_map[wid] = (webview, row, self.current_workspace); self.tab_stack.show_all()
         self.tab_listbox.select_row(row); self.on_tab_clicked(self.tab_listbox, row)
@@ -856,6 +992,7 @@ class ZeroDevBrowser(Gtk.Window):
             .vertical-tabs-list row:hover { background: rgba(255,255,255,0.05); }
             .vertical-tabs-list row:selected { background: rgba(77,144,254,0.15); border: 1px solid rgba(77,144,254,0.3); }
             .private-header { background: #4a148c; border-bottom: 2px solid #8e24aa; }
+            .cmd-palette { border: 1px solid #4D90FE; border-radius: 8px; }
         '''
         provider = Gtk.CssProvider(); provider.load_from_data(css)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
