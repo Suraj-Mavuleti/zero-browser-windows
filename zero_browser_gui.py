@@ -381,6 +381,13 @@ class ZeroDevBrowser(Gtk.Window):
         wid = row.get_name(); self.tab_stack.set_visible_child_name(wid); wv = self.tabs_map[wid][0]; self.current_webview = wv
         self.url_bar.set_text(wv.get_uri() or ""); self.header.set_title(wv.get_title() or "Zero Browser")
 
+    def toggle_mute(self, wid, btn):
+        if wid in self.tabs_map:
+            wv = self.tabs_map[wid][0]
+            is_muted = btn.get_active()
+            wv.set_is_muted(is_muted)
+            btn.set_image(Gtk.Image.new_from_icon_name("audio-volume-muted-symbolic" if is_muted else "audio-volume-high-symbolic", Gtk.IconSize.MENU))
+
     def close_tab(self, wid, btn=None):
         if wid in self.tabs_map:
             wv, row = self.tabs_map[wid]
@@ -591,10 +598,15 @@ class ZeroDevBrowser(Gtk.Window):
         icon = Gtk.Image.new_from_icon_name("text-html-symbolic", Gtk.IconSize.MENU)
         label = Gtk.Label(label="New Tab")
         label.set_halign(Gtk.Align.START); label.set_ellipsize(Pango.EllipsizeMode.END); label.set_max_width_chars(15)
+        
+        btn_mute = Gtk.ToggleButton(); btn_mute.add(Gtk.Image.new_from_icon_name("audio-volume-high-symbolic", Gtk.IconSize.MENU))
+        btn_mute.set_relief(Gtk.ReliefStyle.NONE); btn_mute.set_tooltip_text("Mute Tab")
+        btn_mute.connect("toggled", lambda b: self.toggle_mute(wid, b))
+        
         btn_close = Gtk.Button(); btn_close.add(Gtk.Image.new_from_icon_name("window-close-symbolic", Gtk.IconSize.MENU))
         btn_close.set_relief(Gtk.ReliefStyle.NONE); btn_close.connect("clicked", lambda b: self.close_tab(wid, b))
         
-        hbox.pack_start(icon, False, False, 0); hbox.pack_start(label, True, True, 0); hbox.pack_end(btn_close, False, False, 0)
+        hbox.pack_start(icon, False, False, 0); hbox.pack_start(label, True, True, 0); hbox.pack_end(btn_close, False, False, 0); hbox.pack_end(btn_mute, False, False, 0)
         row.add(hbox); row.show_all()
         
         self.tab_listbox.add(row); self.tabs_map[wid] = (webview, row); self.tab_stack.show_all()
