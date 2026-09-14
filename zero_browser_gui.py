@@ -57,6 +57,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.pw_path = os.path.join(os.path.expanduser("~"), ".zero_passwords.json")
         self.session_path = os.path.join(os.path.expanduser("~"), ".zero_session.json")
         self.search_engines_path = os.path.join(os.path.expanduser("~"), ".zero_search_engines.json")
+        self.permissions_path = os.path.join(os.path.expanduser("~"), ".zero_site_permissions.json")
         self.userscripts_dir = os.path.join(os.path.expanduser("~"), ".zero_userscripts")
         if not os.path.exists(self.userscripts_dir): os.makedirs(self.userscripts_dir)
         
@@ -64,6 +65,9 @@ class ZeroDevBrowser(Gtk.Window):
         self.is_private = False
         self.webrtc_protected = True
         self.current_workspace = "default"
+        
+        self.site_permissions = {}
+        self.load_site_permissions()
         
         self.search_engines = {
             "google": "https://google.com/search?q=",
@@ -114,8 +118,9 @@ class ZeroDevBrowser(Gtk.Window):
         self.url_bar.set_width_chars(50)
         self.url_bar.connect("activate", self.on_url_activate)
         self.url_bar.set_icon_from_icon_name(Gtk.EntryIconPosition.PRIMARY, "network-secure-symbolic")
+        self.url_bar.set_icon_tooltip_text(Gtk.EntryIconPosition.PRIMARY, "Site Permissions")
         self.url_bar.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-refresh-symbolic")
-        self.url_bar.connect("icon-press", lambda e, p, ev: self.current_webview.reload() if hasattr(self, 'current_webview') and p == Gtk.EntryIconPosition.SECONDARY else None)
+        self.url_bar.connect("icon-press", self.on_url_icon_press)
         center_box.pack_start(self.url_bar, True, True, 0)
         
         self.lbl_zoom = Gtk.Label(label="")
@@ -129,6 +134,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.build_bookmarks_popover()
         self.build_history_popover()
         self.build_passwords_popover()
+        self.build_permissions_popover()
         
         self.load_bookmarks()
         self.load_passwords()
@@ -233,6 +239,90 @@ class ZeroDevBrowser(Gtk.Window):
         self.adblock_enabled = True
         self.devtools_window = None
         self.load_session()
+
+    # ================= SITE PERMISSIONS =================
+    def load_site_permissions(self):
+        if os.path.exists(self.permissions_path):
+            try:
+                with open(self.permissions_path, "r") as f: self.site_permissions = json.load(f)
+            except: pass
+
+    def save_site_permissions(self):
+        try:
+            with open(self.permissions_path, "w") as f: json.dump(self.site_permissions, f)
+        except: pass
+
+    def apply_site_permissions(self, webview, uri):
+        if not uri or uri.startswith("zero://"): return
+        domain = urllib.parse.urlparse(uri).hostname
+        if not domain: return
+        
+        perms = self.site_permissions.get(domain, {"js": True, "images": True})
+        settings = webview.get_settings()
+        settings.set_enable_javascript(perms["js"])
+        settings.set_auto_load_images(perms["images"])
+        webview.set_settings(settings)
+
+    def build_permissions_popover(self):
+        self.perm_popover = Gtk.Popover(); self.perm_popover.set_relative_to(self.url_bar)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        box.set_margin_top(15); box.set_margin_bottom(15); box.set_margin_start(15); box.set_margin_end(15)
+        
+        lbl = Gtk.Label(label="Site Permissions"); lbl.get_style_context().add_class("bold-label")
+        box.pack_start(lbl, False, False, 0)
+        
+        self.lbl_domain = Gtk.Label(label=""); self.lbl_domain.get_style_context().add_class("dim-label"); box.pack_start(self.lbl_domain, False, False, 5)
+        
+        hbox1 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        l1 = Gtk.Label(label="Enable JavaScript"); l1.set_halign(Gtk.Align.START); self.switch_js = Gtk.Switch()
+        hbox1.pack_start(l1, True, True, 0); hbox1.pack_end(self.switch_js, False, False, 0); box.pack_start(hbox1, False, False, 0)
+        
+        hbox2 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        l2 = Gtk.Label(label="Load Images"); l2.set_halign(Gtk.Align.START); self.switch_images = Gtk.Switch()
+        hbox2.pack_start(l2, True, True, 0); hbox2.pack_end(self.switch_images, False, False, 0); box.pack_start(hbox2, False, False, 0)
+        
+        self.switch_js.connect("notify::active", self.on_perm_changed)
+        self.switch_images.connect("notify::active", self.on_perm_changed)
+        
+        self.perm_popover.add(box); self.perm_popover.show_all()
+
+    def on_url_icon_press(self, entry, pos, event):
+        if pos == Gtk.EntryIconPosition.PRIMARY:
+            if not hasattr(self, 'current_webview'): return
+            uri = self.current_webview.get_uri()
+            if not uri or uri.startswith("zero://"): return
+            domain = urllib.parse.urlparse(uri).hostname
+            if not domain: return
+            
+            self.lbl_domain.set_text(domain)
+            perms = self.site_permissions.get(domain, {"js": True, "images": True})
+            
+            self.switch_js.handler_block_by_func(self.on_perm_changed)
+            self.switch_images.handler_block_by_func(self.on_perm_changed)
+            self.switch_js.set_active(perms["js"])
+            self.switch_images.set_active(perms["images"])
+            self.switch_js.handler_unblock_by_func(self.on_perm_changed)
+            self.switch_images.handler_unblock_by_func(self.on_perm_changed)
+            
+            self.perm_popover.popup()
+        elif pos == Gtk.EntryIconPosition.SECONDARY:
+            if hasattr(self, 'current_webview'): self.current_webview.reload()
+
+    def on_perm_changed(self, switch, gparam):
+        if not hasattr(self, 'current_webview'): return
+        uri = self.current_webview.get_uri()
+        if not uri: return
+        domain = urllib.parse.urlparse(uri).hostname
+        if not domain: return
+        
+        self.site_permissions[domain] = {
+            "js": self.switch_js.get_active(),
+            "images": self.switch_images.get_active()
+        }
+        self.save_site_permissions()
+        self.apply_site_permissions(self.current_webview, uri)
+        self.current_webview.reload()
+
 
     # ================= FIND IN PAGE =================
     def on_find_changed(self, entry):
@@ -995,6 +1085,7 @@ class ZeroDevBrowser(Gtk.Window):
         if ua_val == 'mobile': settings.set_user_agent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1")
         elif ua_val == 'bot': settings.set_user_agent("Googlebot/2.1 (+http://www.google.com/bot.html)")
         webview.set_settings(settings)
+        self.apply_site_permissions(webview, url)
         
         if url == "zero://start": webview.load_html(START_PAGE_HTML, "zero://start")
         elif url == "zero://settings": webview.load_html(SETTINGS_PAGE_HTML, "zero://settings")
@@ -1065,6 +1156,7 @@ class ZeroDevBrowser(Gtk.Window):
                 title = w.get_title() or "Untitled"
                 if not self.is_private:
                     self.add_to_popover(self.history_list, title, uri, "text-html-symbolic")
+                self.apply_site_permissions(w, uri)
             
         def on_title(w, p):
             title = w.get_title() or "Untitled"
