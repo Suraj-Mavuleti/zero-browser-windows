@@ -103,6 +103,11 @@ class ZeroDevBrowser(Gtk.Window):
         self.url_bar.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-refresh-symbolic")
         self.url_bar.connect("icon-press", lambda e, p, ev: self.current_webview.reload() if hasattr(self, 'current_webview') and p == Gtk.EntryIconPosition.SECONDARY else None)
         center_box.pack_start(self.url_bar, True, True, 0)
+        
+        self.lbl_zoom = Gtk.Label(label="")
+        self.lbl_zoom.get_style_context().add_class("dim-label")
+        center_box.pack_start(self.lbl_zoom, False, False, 5)
+        
         self.header.set_custom_title(center_box)
 
         # POPOVERS
@@ -333,6 +338,14 @@ class ZeroDevBrowser(Gtk.Window):
                 self.save_bookmarks()
                 self.btn_bookmark.set_active(False)
 
+    def update_zoom_label(self):
+        if hasattr(self, 'current_webview'):
+            lvl = self.current_webview.get_zoom_level()
+            if abs(lvl - 1.0) < 0.05:
+                self.lbl_zoom.set_text("")
+            else:
+                self.lbl_zoom.set_text(f"{int(lvl * 100)}%")
+
     def on_key_press(self, widget, event):
         if event.state & Gdk.ModifierType.CONTROL_MASK:
             if event.keyval == Gdk.KEY_t:
@@ -347,6 +360,21 @@ class ZeroDevBrowser(Gtk.Window):
                 return True
             elif event.keyval == Gdk.KEY_l:
                 self.url_bar.grab_focus()
+                return True
+            elif event.keyval in (Gdk.KEY_plus, Gdk.KEY_equal):
+                if hasattr(self, 'current_webview'):
+                    self.current_webview.set_zoom_level(self.current_webview.get_zoom_level() + 0.1)
+                    self.update_zoom_label()
+                return True
+            elif event.keyval == Gdk.KEY_minus:
+                if hasattr(self, 'current_webview'):
+                    self.current_webview.set_zoom_level(max(0.3, self.current_webview.get_zoom_level() - 0.1))
+                    self.update_zoom_label()
+                return True
+            elif event.keyval == Gdk.KEY_0:
+                if hasattr(self, 'current_webview'):
+                    self.current_webview.set_zoom_level(1.0)
+                    self.update_zoom_label()
                 return True
         return False
 
@@ -411,6 +439,7 @@ class ZeroDevBrowser(Gtk.Window):
     def on_tab_clicked(self, listbox, row):
         wid = row.get_name(); self.tab_stack.set_visible_child_name(wid); wv = self.tabs_map[wid][0]; self.current_webview = wv
         self.url_bar.set_text(wv.get_uri() or ""); self.header.set_title(wv.get_title() or "Zero Browser")
+        self.update_zoom_label()
 
     def toggle_mute(self, wid, btn):
         if wid in self.tabs_map:
