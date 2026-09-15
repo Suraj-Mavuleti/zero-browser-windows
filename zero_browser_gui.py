@@ -49,6 +49,18 @@ def format_bytes(b):
         b /= 1024.0
     return "%3.1f PB" % b
 
+def fuzzy_match(query, text):
+    if not query: return True
+    q_idx = 0
+    q_len = len(query)
+    text_lower = text.lower()
+    for char in text_lower:
+        if char == query[q_idx]:
+            q_idx += 1
+            if q_idx == q_len:
+                return True
+    return False
+
 class ZeroDevBrowser(Gtk.Window):
     def __init__(self):
         super().__init__(title="Zero Browser")
@@ -298,7 +310,8 @@ class ZeroDevBrowser(Gtk.Window):
         count = 0
         
         for url in self.omnibox_urls:
-            if q in url.lower():
+            # use fuzzy_match here for URL omnibox as well!
+            if fuzzy_match(q, url):
                 row = Gtk.ListBoxRow(); row.url_data = url
                 hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
                 hbox.set_margin_top(8); hbox.set_margin_bottom(8); hbox.set_margin_start(10)
@@ -667,7 +680,7 @@ class ZeroDevBrowser(Gtk.Window):
                 ("Toggle Private Mode", "cmd:private_mode", "security-high-symbolic")
             ]
             for c in commands:
-                if cmd_q in c[0].lower():
+                if fuzzy_match(cmd_q, c[0].lower()):
                     add_item(c[0], c[1], c[2])
         else:
             count = 0
@@ -675,19 +688,19 @@ class ZeroDevBrowser(Gtk.Window):
                 vbox = row.get_child().get_children()[1]
                 title = vbox.get_children()[0].get_text()
                 url = row.url_data
-                if q in title.lower() or q in url.lower():
+                if fuzzy_match(q, title.lower()) or fuzzy_match(q, url.lower()):
                     add_item(title, url, "bookmark-new-symbolic")
                     count += 1
-                if count > 5: break
+                if count > 8: break
             count = 0
             for row in self.history_list.get_children():
                 vbox = row.get_child().get_children()[1]
                 title = vbox.get_children()[0].get_text()
                 url = row.url_data
-                if q in title.lower() or q in url.lower():
+                if fuzzy_match(q, title.lower()) or fuzzy_match(q, url.lower()):
                     add_item(title, url, "document-open-recent-symbolic")
                     count += 1
-                if count > 5: break
+                if count > 8: break
 
     def on_cmd_activate(self, entry):
         row = self.cmd_listbox.get_row_at_index(0)
