@@ -303,14 +303,12 @@ class ZeroDevBrowser(Gtk.Window):
             self.omnibox_popover.popdown()
             return
 
-        # gather newly loaded history/bookmarks if needed
         if not self.omnibox_urls: self.gather_all_urls()
         
         for c in self.omnibox_list.get_children(): self.omnibox_list.remove(c)
         count = 0
         
         for url in self.omnibox_urls:
-            # use fuzzy_match here for URL omnibox as well!
             if fuzzy_match(q, url):
                 row = Gtk.ListBoxRow(); row.url_data = url
                 hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -343,7 +341,6 @@ class ZeroDevBrowser(Gtk.Window):
         if self.omnibox_popover.get_visible():
             if event.keyval == Gdk.KEY_Down:
                 self.omnibox_list.grab_focus()
-                # Select first item if nothing is selected
                 if not self.omnibox_list.get_selected_row():
                     first_row = self.omnibox_list.get_row_at_index(0)
                     if first_row: self.omnibox_list.select_row(first_row)
@@ -354,7 +351,6 @@ class ZeroDevBrowser(Gtk.Window):
         return False
 
     def on_url_focus_out(self, widget, event):
-        # We need a slight delay to allow row-activated to fire if the user clicked the popover
         GLib.timeout_add(200, lambda: self.omnibox_popover.popdown() if not self.url_bar.has_focus() and not self.omnibox_list.has_focus() else False)
 
 
@@ -779,6 +775,7 @@ class ZeroDevBrowser(Gtk.Window):
         except: pass
 
     def on_settings_message(self, manager, js_result):
+        if self.is_private: return
         msg = js_result.get_js_value().to_string()
         if msg == "clear_history":
             for c in self.history_list.get_children(): self.history_list.remove(c)
@@ -904,7 +901,7 @@ class ZeroDevBrowser(Gtk.Window):
         row.add(hbox); row.show_all()
         row.url_data = sub_text
         listbox.insert(row, 0)
-        self.omnibox_urls.clear() # Force refresh on next typing
+        self.omnibox_urls.clear() 
 
     def on_popover_row_clicked(self, listbox, row):
         if hasattr(row, 'url_data'):
@@ -1077,7 +1074,6 @@ class ZeroDevBrowser(Gtk.Window):
     def build_tabs_sidebar(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); box.set_size_request(200, -1); box.get_style_context().add_class("vertical-tabs-box")
         
-        # Workspace Dropdown
         self.workspace_combo = Gtk.ComboBoxText()
         self.workspace_combo.append("default", "Default Workspace")
         self.workspace_combo.append("work", "Work")
@@ -1088,7 +1084,16 @@ class ZeroDevBrowser(Gtk.Window):
         self.workspace_combo.set_margin_top(10); self.workspace_combo.set_margin_bottom(10); self.workspace_combo.set_margin_start(10); self.workspace_combo.set_margin_end(10)
         box.pack_start(self.workspace_combo, False, False, 0)
         
-        self.tab_listbox = Gtk.ListBox(); self.tab_listbox.get_style_context().add_class("vertical-tabs-list"); self.tab_listbox.connect("row-activated", self.on_tab_clicked)
+        self.tab_groups = {"Ungrouped": True}
+        self.tab_to_group = {}
+        
+        self.tab_listbox = Gtk.ListBox()
+        self.tab_listbox.get_style_context().add_class("vertical-tabs-list")
+        self.tab_listbox.connect("row-activated", self.on_tab_clicked)
+        self.tab_listbox.set_filter_func(self.tab_filter_func)
+        self.tab_listbox.set_sort_func(self.tab_sort_func)
+        self.tab_listbox.set_header_func(self.tab_header_func)
+        
         scroll = Gtk.ScrolledWindow(); scroll.add(self.tab_listbox); box.pack_start(scroll, True, True, 0)
         
         # Quick Notes Panel
@@ -1115,7 +1120,55 @@ class ZeroDevBrowser(Gtk.Window):
         box.pack_start(nscroll, False, False, 0)
         
         return box
+
+    def tab_filter_func(self, row):
+        if not hasattr(row, 'wid_data'): return True
+        if row.wid_data not in self.tabs_map: return False
+        ws = self.tabs_map[row.wid_data][2]
+        if ws != self.current_workspace: return False
         
+        group = self.tab_to_group.get(row.wid_data, "Ungrouped")
+        return self.tab_groups.get(group, True)
+
+    def tab_sort_func(self, row1, row2):
+        if not hasattr(row1, 'wid_data') or not hasattr(row2, 'wid_data'): return 0
+        g1 = self.tab_to_group.get(row1.wid_data, "Ungrouped")
+        g2 = self.tab_to_group.get(row2.wid_data, "Ungrouped")
+        if g1 == g2:
+            return 0 
+        if g1 == "Ungrouped": return -1
+        if g2 == "Ungrouped": return 1
+        return 1 if g1 > g2 else -1
+
+    def tab_header_func(self, row, before_row):
+        if not hasattr(row, 'wid_data'): return
+        current_group = self.tab_to_group.get(row.wid_data, "Ungrouped")
+        before_group = self.tab_to_group.get(before_row.wid_data, "Ungrouped") if before_row and hasattr(before_row, 'wid_data') else None
+        
+        if current_group != before_group:
+            header = Gtk.EventBox()
+            hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            hbox.set_margin_top(10); hbox.set_margin_bottom(5); hbox.set_margin_start(10); hbox.set_margin_end(10)
+            lbl = Gtk.Label(label=current_group)
+            lbl.get_style_context().add_class("tabs-header")
+            lbl.set_halign(Gtk.Align.START)
+            hbox.pack_start(lbl, True, True, 0)
+            
+            icon = Gtk.Image.new_from_icon_name("pan-down-symbolic" if self.tab_groups.get(current_group, True) else "pan-end-symbolic", Gtk.IconSize.MENU)
+            hbox.pack_end(icon, False, False, 0)
+            header.add(hbox)
+            header.show_all()
+            
+            def on_header_click(eb, event):
+                self.tab_groups[current_group] = not self.tab_groups.get(current_group, True)
+                self.tab_listbox.invalidate_filter()
+                self.tab_listbox.invalidate_headers()
+                
+            header.connect("button-press-event", on_header_click)
+            row.set_header(header)
+        else:
+            row.set_header(None)
+
     def on_notes_changed(self, buf):
         text = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), True)
         try:
@@ -1124,20 +1177,18 @@ class ZeroDevBrowser(Gtk.Window):
         
     def on_workspace_changed(self, combo):
         self.current_workspace = combo.get_active_id()
-        visible_count = 0
+        self.tab_listbox.invalidate_filter()
+        self.tab_listbox.invalidate_headers()
+        
         first_visible = None
         for wid, data in self.tabs_map.items():
-            wv, row, ws = data
-            if ws == self.current_workspace:
-                row.show()
-                visible_count += 1
-                if not first_visible: first_visible = row
-            else:
-                row.hide()
-        
-        if visible_count == 0:
+            if data[2] == self.current_workspace:
+                if not first_visible: first_visible = data[1]
+                break
+                
+        if not first_visible:
             self.new_tab("zero://start")
-        elif first_visible:
+        else:
             self.tab_listbox.select_row(first_visible)
             self.on_tab_clicked(self.tab_listbox, first_visible)
 
@@ -1153,7 +1204,6 @@ class ZeroDevBrowser(Gtk.Window):
             wv, row, ws = self.tabs_map[wid]
             is_muted = not wv.get_is_muted()
             wv.set_is_muted(is_muted)
-            # Find the mute button in the row to update its icon
             hbox = row.get_child().get_children()[0]
             for child in hbox.get_children():
                 if isinstance(child, Gtk.ToggleButton):
@@ -1169,13 +1219,14 @@ class ZeroDevBrowser(Gtk.Window):
                 self.tab_stack.remove(wv.get_parent())
             wv.destroy()
             del self.tabs_map[wid]
+            if wid in self.tab_to_group: del self.tab_to_group[wid]
             
-            # Find next visible tab in current workspace
             next_visible = None
             for c in self.tab_listbox.get_children():
-                if c.is_visible():
-                    next_visible = c
-                    break
+                if c.is_visible() and hasattr(c, 'wid_data') and c.wid_data in self.tabs_map:
+                    if self.tabs_map[c.wid_data][2] == self.current_workspace:
+                        next_visible = c
+                        break
             
             if next_visible:
                 self.tab_listbox.select_row(next_visible); self.on_tab_clicked(self.tab_listbox, next_visible)
@@ -1229,10 +1280,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_adblock = Gtk.ToggleButton(label="Adblock ON"); self.btn_adblock.set_active(True); self.btn_adblock.connect("toggled", self.on_adblock_toggled); sec_box.pack_start(self.btn_adblock, False, False, 0)
         self.ua_combo = Gtk.ComboBoxText(); self.ua_combo.append("default", "Standard UA"); self.ua_combo.append("mobile", "Mobile (iPhone)"); self.ua_combo.append("bot", "Googlebot"); self.ua_combo.set_active(0); self.ua_combo.connect("changed", self.on_ua_changed); sec_box.pack_end(self.ua_combo, False, False, 0)
         
-        # Native Inspector
         btn_native = Gtk.Button(); btn_native.add(Gtk.Image.new_from_icon_name("applications-development-symbolic", Gtk.IconSize.MENU)); btn_native.set_tooltip_text("Open Native Web Inspector"); btn_native.connect("clicked", lambda b: self.current_webview.get_inspector().show() if hasattr(self, 'current_webview') else None); sec_box.pack_end(btn_native, False, False, 0)
-
-        # Detach button
         btn_detach = Gtk.Button(); btn_detach.add(Gtk.Image.new_from_icon_name("view-restore-symbolic", Gtk.IconSize.MENU)); btn_detach.set_tooltip_text("Detach to separate window"); btn_detach.connect("clicked", self.on_detach_devtools); sec_box.pack_end(btn_detach, False, False, 0)
         
         ti_sec = Gtk.ToolItem(); ti_sec.set_expand(True); ti_sec.add(sec_box); toolbar.insert(ti_sec, 1)
@@ -1252,7 +1300,6 @@ class ZeroDevBrowser(Gtk.Window):
 
     def on_detach_devtools(self, btn):
         if self.devtools_window:
-            # Re-attach
             self.devtools_window.remove(self.devtools_box)
             self.devtools_window.destroy()
             self.devtools_window = None
@@ -1260,7 +1307,6 @@ class ZeroDevBrowser(Gtk.Window):
             self.devtools_revealer.set_reveal_child(self.btn_devtools.get_active())
             btn.set_image(Gtk.Image.new_from_icon_name("view-restore-symbolic", Gtk.IconSize.MENU))
         else:
-            # Detach
             self.devtools_revealer.set_reveal_child(False)
             self.devtools_revealer.remove(self.devtools_box)
             self.devtools_window = Gtk.Window(title="Zero Hacker Tools")
@@ -1301,7 +1347,6 @@ class ZeroDevBrowser(Gtk.Window):
         
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         
-        # Download icon
         icon = Gtk.Image.new_from_icon_name("text-html-symbolic", Gtk.IconSize.MENU)
         
         lbl_name = Gtk.Label(label=filename)
@@ -1317,7 +1362,7 @@ class ZeroDevBrowser(Gtk.Window):
         
         pbar = Gtk.ProgressBar()
         pbar.set_fraction(0.0)
-        pbar.set_margin_start(25) # indent past icon
+        pbar.set_margin_start(25)
         
         btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         btn_box.set_margin_start(25)
@@ -1496,7 +1541,9 @@ class ZeroDevBrowser(Gtk.Window):
         wid = "tab_" + str(id(webview))
         self.tab_stack.add_named(scrolled, wid)
         
-        row = Gtk.ListBoxRow(); row.set_name(wid)
+        row = Gtk.ListBoxRow(); row.set_name(wid); row.wid_data = wid
+        self.tab_to_group[wid] = "Ungrouped"
+        
         eb = Gtk.EventBox()
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         hbox.set_margin_top(5); hbox.set_margin_bottom(5); hbox.set_margin_start(10); hbox.set_margin_end(5)
@@ -1521,6 +1568,30 @@ class ZeroDevBrowser(Gtk.Window):
                 self.close_tab(wid)
             elif event.button == 3: # Right click
                 menu = Gtk.Menu()
+                
+                item_group = Gtk.MenuItem(label="Group by Domain")
+                def group_domain(w):
+                    uri = webview.get_uri()
+                    if uri:
+                        domain = urllib.parse.urlparse(uri).hostname or "Local"
+                        self.tab_to_group[wid] = domain
+                        if domain not in self.tab_groups: self.tab_groups[domain] = True
+                        self.tab_listbox.invalidate_sort()
+                        self.tab_listbox.invalidate_filter()
+                        self.tab_listbox.invalidate_headers()
+                item_group.connect("activate", group_domain)
+                menu.append(item_group)
+
+                item_ungroup = Gtk.MenuItem(label="Ungroup Tab")
+                def ungroup(w):
+                    self.tab_to_group[wid] = "Ungrouped"
+                    self.tab_listbox.invalidate_sort()
+                    self.tab_listbox.invalidate_filter()
+                    self.tab_listbox.invalidate_headers()
+                item_ungroup.connect("activate", ungroup)
+                menu.append(item_ungroup)
+                
+                menu.append(Gtk.SeparatorMenuItem())
                 
                 item_dup = Gtk.MenuItem(label="Duplicate Tab")
                 item_dup.connect("activate", lambda w: self.new_tab(webview.get_uri()) if webview else None)
