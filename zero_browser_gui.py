@@ -17,8 +17,6 @@ MARKDOWN_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>
 
 START_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Browser Start</title><style>body { margin: 0; padding: 0; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; } .container { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); animation: fadein 0.5s ease-out; } @keyframes fadein { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } } h1 { font-size: 48px; font-weight: 800; margin: 0 0 10px 0; background: linear-gradient(90deg, #4D90FE, #00C853); -webkit-background-clip: text; -webkit-text-fill-color: transparent; } p { color: #A0AAB5; font-size: 16px; margin-bottom: 30px; } .search-box { display: flex; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 10px 20px; margin-bottom: 30px; width: 400px; transition: all 0.3s ease; } .search-box:focus-within { border-color: #4D90FE; box-shadow: 0 0 15px rgba(77,144,254,0.2); } .search-box input { background: transparent; border: none; color: white; font-size: 16px; width: 100%; outline: none; } .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; } .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px 10px; text-decoration: none; color: white; font-size: 14px; font-weight: 500; transition: all 0.2s; } .card:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); border-color: rgba(255,255,255,0.2); }</style></head><body><div class="container"><h1 id="time">00:00</h1><p>Welcome to Zero Browser.</p><div class="search-box"><input type="text" id="q" placeholder="Search or enter URL..." autofocus></div><div class="grid"><a href="https://github.com" class="card">GitHub</a><a href="zero://sessions" class="card">Sessions</a><a href="zero://markdown" class="card">Markdown</a><a href="https://youtube.com" class="card">YouTube</a><a href="zero://settings" class="card">Settings</a><a href="zero://shortcuts" class="card">Shortcuts</a></div></div><script>function updateTime() { const now = new Date(); document.getElementById('time').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); } setInterval(updateTime, 1000); updateTime(); document.getElementById('q').addEventListener('keypress', function(e) { if(e.key === 'Enter') { let val = this.value; if(val.includes('.') && !val.includes(' ')) { if(!val.startsWith('http')) val = 'https://' + val; window.location.href = val; } else { window.location.href = 'zero://search?q=' + encodeURIComponent(val); } } });</script></body></html>"""
 
-SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } h2 { font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; } .btn { background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; } .btn:hover { background: #3b78e7; } .btn-danger { background: #d32f2f; } .btn-danger:hover { background: #b71c1c; } .info { color: #A0AAB5; margin-bottom: 20px; }</style></head><body><h1>Settings</h1><div class="section"><h2>Appearance</h2><p class="info">Customize how Zero Browser looks.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div><div class="section"><h2>Privacy & Security</h2><p class="info">Prevent WebRTC IP leaks by disabling Media Stream APIs.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_webrtc')">Toggle Media/WebRTC Protection</button></div><div class="section"><h2>Search Engines</h2><p class="info">Configure your custom search engines via the JSON config file.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_search_config')">Edit Search Engines Config</button></div><div class="section"><h2>User Scripts</h2><p class="info">Load custom JS on all pages. Open the scripts folder.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_userscripts_dir')">Open User Scripts Folder</button></div><div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div></body></html>"""
-
 SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Tab</kbd></td><td>Visual Tab Switcher</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Command Palette</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>F</kbd></td><td>Find in Page</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr><tr><td>Middle Click Tab</td><td>Close Tab</td></tr><tr><td>Right Click Tab</td><td>Context Menu (Duplicate, Close Others, Detach PiP)</td></tr><tr><td>Mouse Button 8/9</td><td>Navigate Back / Forward</td></tr></table></div></body></html>"""
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
@@ -157,7 +155,6 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.header.set_custom_title(center_box)
 
-        # Custom Omnibox Popover
         self.build_omnibox_popover()
 
         # POPOVERS
@@ -266,9 +263,6 @@ class ZeroDevBrowser(Gtk.Window):
             sheet = WebKit2.UserStyleSheet(css, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserStyleLevel.USER, None, None)
             self.user_content.add_style_sheet(sheet)
             
-        pw_script = WebKit2.UserScript(PW_INJECT_JS, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserScriptInjectionTime.END, None, None)
-        self.user_content.add_script(pw_script)
-        
         self.load_userscripts()
         
         self.adblock_enabled = True
@@ -725,18 +719,6 @@ class ZeroDevBrowser(Gtk.Window):
                 self.new_tab(url)
 
 
-    def load_userscripts(self):
-        for f in os.listdir(self.userscripts_dir):
-            if f.endswith(".js"):
-                try:
-                    with open(os.path.join(self.userscripts_dir, f), "r") as script_file:
-                        content = script_file.read()
-                        user_script = WebKit2.UserScript(content, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserScriptInjectionTime.END, None, None)
-                        self.user_content.add_script(user_script)
-                        print(f"[*] Loaded User Script: {f}")
-                except Exception as e:
-                    print(f"Error loading {f}:", e)
-
     def load_search_engines(self):
         if not os.path.exists(self.search_engines_path):
             with open(self.search_engines_path, "w") as f: json.dump(self.search_engines, f, indent=4)
@@ -744,6 +726,17 @@ class ZeroDevBrowser(Gtk.Window):
             try:
                 with open(self.search_engines_path, "r") as f: self.search_engines = json.load(f)
             except: pass
+
+    def save_search_engines(self):
+        try:
+            with open(self.search_engines_path, "w") as f: json.dump(self.search_engines, f, indent=4)
+        except: pass
+
+    def refresh_search_engine_combo(self):
+        self.search_engine_combo.remove_all()
+        for k in self.search_engines.keys():
+            self.search_engine_combo.append(k, k.capitalize())
+        self.search_engine_combo.set_active(0)
 
     def load_session(self):
         if os.path.exists(self.session_path):
@@ -774,6 +767,108 @@ class ZeroDevBrowser(Gtk.Window):
             with open(self.session_path, "w") as f: json.dump(session, f)
         except: pass
 
+    def get_userscripts(self):
+        scripts = []
+        disabled_path = os.path.join(os.path.expanduser("~"), ".zero_disabled_scripts.json")
+        disabled = []
+        if os.path.exists(disabled_path):
+            try:
+                with open(disabled_path, "r") as f: disabled = json.load(f)
+            except: pass
+            
+        for f in os.listdir(self.userscripts_dir):
+            if f.endswith(".js"):
+                scripts.append({
+                    "name": f,
+                    "enabled": f not in disabled
+                })
+        return scripts, disabled
+
+    def load_userscripts(self):
+        self.user_content.remove_all_scripts()
+        pw_script = WebKit2.UserScript(PW_INJECT_JS, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserScriptInjectionTime.END, None, None)
+        self.user_content.add_script(pw_script)
+        
+        disabled_path = os.path.join(os.path.expanduser("~"), ".zero_disabled_scripts.json")
+        disabled = []
+        if os.path.exists(disabled_path):
+            try:
+                with open(disabled_path, "r") as f: disabled = json.load(f)
+            except: pass
+
+        for f in os.listdir(self.userscripts_dir):
+            if f.endswith(".js") and f not in disabled:
+                try:
+                    with open(os.path.join(self.userscripts_dir, f), "r") as script_file:
+                        content = script_file.read()
+                        user_script = WebKit2.UserScript(content, WebKit2.UserContentInjectedFrames.ALL_FRAMES, WebKit2.UserScriptInjectionTime.END, None, None)
+                        self.user_content.add_script(user_script)
+                        print(f"[*] Loaded User Script: {f}")
+                except Exception as e:
+                    print(f"Error loading {f}:", e)
+
+    def generate_settings_html(self):
+        scripts, disabled = self.get_userscripts()
+        
+        scripts_html = ""
+        for s in scripts:
+            chk = "checked" if s["enabled"] else ""
+            scripts_html += f"<tr><td>{s['name']}</td><td style='text-align:right'><label class='switch'><input type='checkbox' {chk} onchange=\"window.webkit.messageHandlers.settings.postMessage('toggle_script:' + '{s['name']}')\"><span class='slider'></span></label></td></tr>"
+        if not scripts:
+            scripts_html = "<tr><td colspan='2' style='color:#888'>No scripts found in ~/.zero_userscripts</td></tr>"
+            
+        se_html = ""
+        for name, url in self.search_engines.items():
+            se_html += f"<tr><td><strong>{name}</strong></td><td><span style='color:#888; font-size:12px;'>{url}</span></td><td style='text-align:right'><button class='btn btn-danger' onclick=\"window.webkit.messageHandlers.settings.postMessage('del_se:' + '{name}')\">Delete</button></td></tr>"
+            
+        html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Settings</title>
+        <style>
+        body {{ margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }}
+        h1 {{ font-size: 36px; font-weight: 800; margin-bottom: 30px; }}
+        .section {{ background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; }}
+        h2 {{ font-size: 20px; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 20px; }}
+        .btn {{ background: #4D90FE; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 10px; transition: 0.2s; }}
+        .btn:hover {{ background: #3b78e7; }}
+        .btn-danger {{ background: #d32f2f; }} .btn-danger:hover {{ background: #b71c1c; }}
+        .info {{ color: #A0AAB5; margin-bottom: 20px; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        td {{ padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }}
+        input[type='text'] {{ background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 10px; color: white; font-size: 14px; margin-right: 10px; width: 250px; outline: none; }}
+        .switch {{ position: relative; display: inline-block; width: 40px; height: 20px; }}
+        .switch input {{ opacity: 0; width: 0; height: 0; }}
+        .slider {{ position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .2s; border-radius: 20px; }}
+        .slider:before {{ position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5); }}
+        input:checked + .slider {{ background-color: #4D90FE; }}
+        input:checked + .slider:before {{ transform: translateX(20px); }}
+        </style></head>
+        <body>
+        <h1>Settings</h1>
+        <div class="section"><h2>Appearance</h2><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_theme')">Toggle Light / Dark Mode</button></div>
+        <div class="section"><h2>Privacy & Security</h2><p class="info">Prevent WebRTC IP leaks by disabling Media Stream APIs.</p><button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('toggle_webrtc')">Toggle Media/WebRTC Protection</button></div>
+        
+        <div class="section">
+            <h2>User Scripts</h2>
+            <p class="info">Toggle custom JS scripts injected into all pages.</p>
+            <table>{scripts_html}</table>
+            <br>
+            <button class="btn" onclick="window.webkit.messageHandlers.settings.postMessage('open_userscripts_dir')">Open Scripts Folder</button>
+        </div>
+        
+        <div class="section">
+            <h2>Search Engines</h2>
+            <p class="info">Manage your custom search engines here.</p>
+            <table>{se_html}</table>
+            <br>
+            <input type='text' id='se_new_name' placeholder='Name (e.g. duckduckgo)'>
+            <input type='text' id='se_new_url' placeholder='URL (e.g. https://duckduckgo.com/?q=)'>
+            <button class='btn' onclick="let n=document.getElementById('se_new_name').value; let u=document.getElementById('se_new_url').value; if(n&&u) window.webkit.messageHandlers.settings.postMessage('add_se:'+n+'|'+u)">Add Search Engine</button>
+        </div>
+        
+        <div class="section"><h2>Clear Browsing Data</h2><p class="info">This action is irreversible and will delete your data from the local machine.</p><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_history')">Clear History</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_bookmarks')">Clear Bookmarks</button><button class="btn btn-danger" onclick="window.webkit.messageHandlers.settings.postMessage('clear_passwords')">Clear Passwords</button></div>
+        </body></html>
+        """
+        return html
+
     def on_settings_message(self, manager, js_result):
         if self.is_private: return
         msg = js_result.get_js_value().to_string()
@@ -796,8 +891,6 @@ class ZeroDevBrowser(Gtk.Window):
             is_dark = settings.get_property("gtk-application-prefer-dark-theme")
             settings.set_property("gtk-application-prefer-dark-theme", not is_dark)
             print(f"[*] Theme switched to {'Light' if is_dark else 'Dark'}")
-        elif msg == "open_search_config":
-            os.system(f"xdg-open '{self.search_engines_path}'")
         elif msg == "open_userscripts_dir":
             os.system(f"xdg-open '{self.userscripts_dir}'")
         elif msg == "toggle_webrtc":
@@ -808,6 +901,36 @@ class ZeroDevBrowser(Gtk.Window):
                 if hasattr(s, 'set_enable_media_stream'):
                     s.set_enable_media_stream(not self.webrtc_protected)
             print(f"[*] WebRTC/MediaStream Protection is now {'ON' if self.webrtc_protected else 'OFF'}")
+        elif msg.startswith("toggle_script:"):
+            script_name = msg.split(":", 1)[1]
+            disabled_path = os.path.join(os.path.expanduser("~"), ".zero_disabled_scripts.json")
+            disabled = []
+            if os.path.exists(disabled_path):
+                try:
+                    with open(disabled_path, "r") as f: disabled = json.load(f)
+                except: pass
+            if script_name in disabled:
+                disabled.remove(script_name)
+            else:
+                disabled.append(script_name)
+            with open(disabled_path, "w") as f: json.dump(disabled, f)
+            print(f"[*] Toggled user script {script_name}")
+            self.load_userscripts()
+            if hasattr(self, 'current_webview'): self.current_webview.load_html(self.generate_settings_html(), "zero://settings")
+        elif msg.startswith("del_se:"):
+            name = msg.split(":", 1)[1]
+            if name in self.search_engines:
+                del self.search_engines[name]
+                self.save_search_engines()
+                self.refresh_search_engine_combo()
+                if hasattr(self, 'current_webview'): self.current_webview.load_html(self.generate_settings_html(), "zero://settings")
+        elif msg.startswith("add_se:"):
+            parts = msg.split(":", 1)[1].split("|", 1)
+            if len(parts) == 2 and parts[0] and parts[1]:
+                self.search_engines[parts[0]] = parts[1]
+                self.save_search_engines()
+                self.refresh_search_engine_combo()
+                if hasattr(self, 'current_webview'): self.current_webview.load_html(self.generate_settings_html(), "zero://settings")
 
     def on_private_toggled(self, btn):
         self.is_private = btn.get_active()
@@ -1527,7 +1650,7 @@ class ZeroDevBrowser(Gtk.Window):
         self.apply_site_permissions(webview, url)
         
         if url == "zero://start": webview.load_html(START_PAGE_HTML, "zero://start")
-        elif url == "zero://settings": webview.load_html(SETTINGS_PAGE_HTML, "zero://settings")
+        elif url == "zero://settings": webview.load_html(self.generate_settings_html(), "zero://settings")
         elif url == "zero://shortcuts": webview.load_html(SHORTCUTS_PAGE_HTML, "zero://shortcuts")
         elif url == "zero://sessions": webview.load_html(self.generate_sessions_html(), "zero://sessions")
         elif url == "zero://markdown": webview.load_html(MARKDOWN_PAGE_HTML, "zero://markdown")
@@ -1652,7 +1775,7 @@ class ZeroDevBrowser(Gtk.Window):
             if hasattr(self, 'current_webview'): self.current_webview.load_html(START_PAGE_HTML, "zero://start")
             return
         elif url == "zero://settings":
-            if hasattr(self, 'current_webview'): self.current_webview.load_html(SETTINGS_PAGE_HTML, "zero://settings")
+            if hasattr(self, 'current_webview'): self.current_webview.load_html(self.generate_settings_html(), "zero://settings")
             return
         elif url == "zero://shortcuts":
             if hasattr(self, 'current_webview'): self.current_webview.load_html(SHORTCUTS_PAGE_HTML, "zero://shortcuts")
