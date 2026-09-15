@@ -758,11 +758,34 @@ class ZeroDevBrowser(Gtk.Window):
         self.btn_downloads = Gtk.ToggleButton()
         self.btn_downloads.add(Gtk.Image.new_from_icon_name("folder-download-symbolic", Gtk.IconSize.MENU))
         self.header.pack_end(self.btn_downloads)
+        
         self.downloads_popover = Gtk.Popover(); self.downloads_popover.set_relative_to(self.btn_downloads)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        
+        header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        header_box.set_margin_start(10); header_box.set_margin_end(10); header_box.set_margin_top(10); header_box.set_margin_bottom(10)
+        lbl_title = Gtk.Label(label="Downloads")
+        lbl_title.get_style_context().add_class("bold-label")
+        lbl_title.set_halign(Gtk.Align.START)
+        
+        btn_clear = Gtk.Button(label="Clear Completed")
+        btn_clear.connect("clicked", self.on_clear_completed_downloads)
+        
+        header_box.pack_start(lbl_title, True, True, 0)
+        header_box.pack_end(btn_clear, False, False, 0)
+        box.pack_start(header_box, False, False, 0)
+        
         self.downloads_list = Gtk.ListBox(); self.downloads_list.set_selection_mode(Gtk.SelectionMode.NONE)
-        scroll = Gtk.ScrolledWindow(); scroll.set_size_request(350, 400); scroll.add(self.downloads_list); self.downloads_popover.add(scroll)
+        scroll = Gtk.ScrolledWindow(); scroll.set_size_request(350, 400); scroll.add(self.downloads_list); box.pack_start(scroll, True, True, 0)
+        self.downloads_popover.add(box)
+        
         self.btn_downloads.connect("toggled", lambda b: self.downloads_popover.popup() if b.get_active() else self.downloads_popover.popdown())
         self.downloads_popover.connect("closed", lambda p: self.btn_downloads.set_active(False))
+
+    def on_clear_completed_downloads(self, btn):
+        for child in self.downloads_list.get_children():
+            if getattr(child, 'is_completed', False):
+                self.downloads_list.remove(child)
 
     def build_history_popover(self):
         self.btn_history = Gtk.ToggleButton()
@@ -1202,25 +1225,41 @@ class ZeroDevBrowser(Gtk.Window):
         download.set_destination("file://" + dest)
         
         row = Gtk.ListBoxRow()
+        row.is_completed = False
+        row.get_style_context().add_class("download-row")
         row.set_margin_top(5); row.set_margin_bottom(5); row.set_margin_start(10); row.set_margin_end(10)
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
         
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        
+        # Download icon
+        icon = Gtk.Image.new_from_icon_name("text-html-symbolic", Gtk.IconSize.MENU)
+        
         lbl_name = Gtk.Label(label=filename)
         lbl_name.set_halign(Gtk.Align.START); lbl_name.set_ellipsize(Pango.EllipsizeMode.END)
-        lbl_status = Gtk.Label(label="Downloading...")
-        lbl_status.set_halign(Gtk.Align.END); lbl_status.get_style_context().add_class("bold-label")
-        hbox.pack_start(lbl_name, True, True, 0); hbox.pack_end(lbl_status, False, False, 0)
+        lbl_name.get_style_context().add_class("bold-label")
+        
+        lbl_status = Gtk.Label(label="Starting...")
+        lbl_status.set_halign(Gtk.Align.END); lbl_status.get_style_context().add_class("dim-label")
+        
+        hbox.pack_start(icon, False, False, 0)
+        hbox.pack_start(lbl_name, True, True, 0)
+        hbox.pack_end(lbl_status, False, False, 0)
         
         pbar = Gtk.ProgressBar()
         pbar.set_fraction(0.0)
+        pbar.set_margin_start(25) # indent past icon
         
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+        btn_box.set_margin_start(25)
         btn_cancel = Gtk.Button(label="Cancel")
+        btn_cancel.get_style_context().add_class("destructive-action")
         btn_cancel.connect("clicked", lambda b: download.cancel())
+        btn_box.pack_start(btn_cancel, False, False, 0)
         
         vbox.pack_start(hbox, False, False, 0)
         vbox.pack_start(pbar, False, False, 0)
-        vbox.pack_start(btn_cancel, False, False, 0)
+        vbox.pack_start(btn_box, False, False, 0)
         row.add(vbox); row.show_all()
         
         self.downloads_list.insert(row, 0)
@@ -1230,7 +1269,6 @@ class ZeroDevBrowser(Gtk.Window):
         def update_progress(dl, l):
             frac = dl.get_estimated_progress()
             pbar.set_fraction(frac)
-            req = dl.get_request()
             res = dl.get_response()
             if res:
                 content_length = res.get_content_length()
@@ -1244,11 +1282,14 @@ class ZeroDevBrowser(Gtk.Window):
             lbl_status.set_text("Finished")
             pbar.set_fraction(1.0)
             btn_cancel.set_label("Open Folder")
+            btn_cancel.get_style_context().remove_class("destructive-action")
             btn_cancel.connect("clicked", lambda b: os.system("xdg-open " + os.path.expanduser("~/Downloads")))
+            row.is_completed = True
             
         def fail_dl(dl, e):
             lbl_status.set_text("Failed/Cancelled")
             btn_cancel.set_sensitive(False)
+            row.is_completed = True
 
         download.connect("received-data", update_progress)
         download.connect("finished", finish_dl)
@@ -1501,6 +1542,8 @@ class ZeroDevBrowser(Gtk.Window):
             .cmd-palette { border: 1px solid #4D90FE; border-radius: 8px; background: rgba(30, 30, 30, 0.95); }
             .find-bar { background: rgba(40,40,40,0.95); padding: 5px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
             .quick-notes { background: #1a1c23; color: #a0aab5; font-family: monospace; font-size: 11px; padding: 10px; }
+            .download-row { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+            .destructive-action { color: #ff5252; }
         '''
         provider = Gtk.CssProvider(); provider.load_from_data(css)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
