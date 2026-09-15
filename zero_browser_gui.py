@@ -18,7 +18,7 @@ SETTINGS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>
 SHORTCUTS_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Shortcuts</title><style>body { margin: 0; padding: 40px; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } h1 { font-size: 36px; font-weight: 800; margin-bottom: 30px; } .section { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 25px; margin-bottom: 20px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); } th { color: #4D90FE; } kbd { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; }</style></head><body><h1>Keyboard Shortcuts</h1><div class="section"><table><tr><th>Shortcut</th><th>Action</th></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Tab</kbd></td><td>Visual Tab Switcher</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>New Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>W</kbd></td><td>Close Tab</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus URL Bar</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Command Palette</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>F</kbd></td><td>Find in Page</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>+</kbd></td><td>Zoom In</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>-</kbd></td><td>Zoom Out</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>0</kbd></td><td>Reset Zoom</td></tr><tr><td>Middle Click Tab</td><td>Close Tab</td></tr><tr><td>Right Click Tab</td><td>Context Menu (Duplicate, Close Others, Detach PiP)</td></tr><tr><td>Mouse Button 8/9</td><td>Navigate Back / Forward</td></tr></table></div></body></html>"""
 
 SCROLLBAR_CSS = "::-webkit-scrollbar { width: 8px; height: 8px; background: #12141a; } ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #4d90fe; } ::-webkit-scrollbar-corner { background: #12141a; }"
-COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
+COSMETIC_ADBLOCK_CSS = ".adsbygoogle, .ad-container, .ad-slot, .ad-banner, .pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text_ads, .text-ad-links, div[id^='div-gpt-ad-'], div[id^='google_ads_iframe_'], iframe[id^='google_ads_iframe_'], div[class*='Sponsored'], div[class*='sponsored'], div[class*='Advert'], div[class*='advert'] { display: none !important; }"
 
 PW_INJECT_JS = """
 document.addEventListener('submit', function(e) {
@@ -998,7 +998,37 @@ class ZeroDevBrowser(Gtk.Window):
         
         self.tab_listbox = Gtk.ListBox(); self.tab_listbox.get_style_context().add_class("vertical-tabs-list"); self.tab_listbox.connect("row-activated", self.on_tab_clicked)
         scroll = Gtk.ScrolledWindow(); scroll.add(self.tab_listbox); box.pack_start(scroll, True, True, 0)
+        
+        # Quick Notes Panel
+        notes_lbl = Gtk.Label(label="Quick Notes")
+        notes_lbl.get_style_context().add_class("tabs-header")
+        notes_lbl.set_halign(Gtk.Align.START)
+        notes_lbl.set_margin_start(10); notes_lbl.set_margin_top(10); notes_lbl.set_margin_bottom(5)
+        box.pack_start(notes_lbl, False, False, 0)
+        
+        self.notes_view = Gtk.TextView()
+        self.notes_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        self.notes_view.get_style_context().add_class("quick-notes")
+        self.notes_view.get_buffer().connect("changed", self.on_notes_changed)
+        
+        self.notes_path = os.path.join(os.path.expanduser("~"), ".zero_notes.txt")
+        if os.path.exists(self.notes_path):
+            try:
+                with open(self.notes_path, "r") as f:
+                    self.notes_view.get_buffer().set_text(f.read())
+            except: pass
+            
+        nscroll = Gtk.ScrolledWindow(); nscroll.set_size_request(-1, 200)
+        nscroll.add(self.notes_view)
+        box.pack_start(nscroll, False, False, 0)
+        
         return box
+        
+    def on_notes_changed(self, buf):
+        text = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), True)
+        try:
+            with open(self.notes_path, "w") as f: f.write(text)
+        except: pass
         
     def on_workspace_changed(self, combo):
         self.current_workspace = combo.get_active_id()
@@ -1470,6 +1500,7 @@ class ZeroDevBrowser(Gtk.Window):
             .private-header { background: #4a148c; border-bottom: 2px solid #8e24aa; }
             .cmd-palette { border: 1px solid #4D90FE; border-radius: 8px; background: rgba(30, 30, 30, 0.95); }
             .find-bar { background: rgba(40,40,40,0.95); padding: 5px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
+            .quick-notes { background: #1a1c23; color: #a0aab5; font-family: monospace; font-size: 11px; padding: 10px; }
         '''
         provider = Gtk.CssProvider(); provider.load_from_data(css)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
