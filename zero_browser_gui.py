@@ -125,21 +125,13 @@ class ZeroDevBrowser(Gtk.Window):
         self.url_bar.set_placeholder_text("Search or enter web address")
         self.url_bar.set_width_chars(50)
         self.url_bar.connect("activate", self.on_url_activate)
+        self.url_bar.connect("changed", self.on_url_changed)
+        self.url_bar.connect("key-press-event", self.on_url_key_press)
+        self.url_bar.connect("focus-out-event", self.on_url_focus_out)
         self.url_bar.set_icon_from_icon_name(Gtk.EntryIconPosition.PRIMARY, "network-secure-symbolic")
         self.url_bar.set_icon_tooltip_text(Gtk.EntryIconPosition.PRIMARY, "Site Permissions")
         self.url_bar.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-refresh-symbolic")
         self.url_bar.connect("icon-press", self.on_url_icon_press)
-        
-        # Smart URL Bar Autosuggestion (Gtk.EntryCompletion)
-        self.url_liststore = Gtk.ListStore(str)
-        self.url_completion = Gtk.EntryCompletion()
-        self.url_completion.set_model(self.url_liststore)
-        self.url_completion.set_text_column(0)
-        self.url_completion.set_inline_completion(True)
-        self.url_completion.set_popup_completion(True)
-        self.url_completion.set_match_func(self.url_completion_match_func)
-        self.url_completion.connect("match-selected", self.on_url_match_selected)
-        self.url_bar.set_completion(self.url_completion)
         
         center_box.pack_start(self.url_bar, True, True, 0)
         
@@ -148,6 +140,9 @@ class ZeroDevBrowser(Gtk.Window):
         center_box.pack_start(self.lbl_zoom, False, False, 5)
         
         self.header.set_custom_title(center_box)
+
+        # Custom Omnibox Popover
+        self.build_omnibox_popover()
 
         # POPOVERS
         self.build_downloads_popover()
@@ -263,8 +258,88 @@ class ZeroDevBrowser(Gtk.Window):
         self.adblock_enabled = True
         self.devtools_window = None
         
-        self.rebuild_url_completion()
         self.load_session()
+
+    # ================= CUSTOM OMNIBOX POPOVER =================
+    def build_omnibox_popover(self):
+        self.omnibox_popover = Gtk.Popover(); self.omnibox_popover.set_relative_to(self.url_bar)
+        self.omnibox_popover.set_position(Gtk.PositionType.BOTTOM)
+        self.omnibox_list = Gtk.ListBox(); self.omnibox_list.connect("row-activated", self.on_omnibox_row_activated)
+        
+        scroll = Gtk.ScrolledWindow(); scroll.set_size_request(450, 300)
+        scroll.add(self.omnibox_list)
+        self.omnibox_popover.add(scroll)
+        self.omnibox_urls = []
+
+    def gather_all_urls(self):
+        urls = set()
+        for row in self.bookmarks_list.get_children():
+            u = getattr(row, 'url_data', None)
+            if u: urls.add(u)
+        for row in self.history_list.get_children():
+            u = getattr(row, 'url_data', None)
+            if u: urls.add(u)
+        self.omnibox_urls = list(urls)
+
+    def on_url_changed(self, entry):
+        q = entry.get_text().lower()
+        if not q:
+            self.omnibox_popover.popdown()
+            return
+
+        # gather newly loaded history/bookmarks if needed
+        if not self.omnibox_urls: self.gather_all_urls()
+        
+        for c in self.omnibox_list.get_children(): self.omnibox_list.remove(c)
+        count = 0
+        
+        for url in self.omnibox_urls:
+            if q in url.lower():
+                row = Gtk.ListBoxRow(); row.url_data = url
+                hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+                hbox.set_margin_top(8); hbox.set_margin_bottom(8); hbox.set_margin_start(10)
+                
+                icon = Gtk.Image.new_from_icon_name("network-wired-symbolic", Gtk.IconSize.MENU)
+                lbl = Gtk.Label(label=url)
+                lbl.set_halign(Gtk.Align.START); lbl.set_ellipsize(Pango.EllipsizeMode.END)
+                
+                hbox.pack_start(icon, False, False, 0)
+                hbox.pack_start(lbl, True, True, 0)
+                row.add(hbox); row.show_all()
+                self.omnibox_list.add(row)
+                count += 1
+                if count > 8: break
+                
+        if count > 0:
+            self.omnibox_popover.popup()
+            self.url_bar.grab_focus()
+        else:
+            self.omnibox_popover.popdown()
+
+    def on_omnibox_row_activated(self, listbox, row):
+        if hasattr(row, 'url_data'):
+            self.url_bar.set_text(row.url_data)
+            self.omnibox_popover.popdown()
+            self.on_url_activate(self.url_bar)
+
+    def on_url_key_press(self, widget, event):
+        if self.omnibox_popover.get_visible():
+            if event.keyval == Gdk.KEY_Down:
+                self.omnibox_list.grab_focus()
+                # Select first item if nothing is selected
+                if not self.omnibox_list.get_selected_row():
+                    first_row = self.omnibox_list.get_row_at_index(0)
+                    if first_row: self.omnibox_list.select_row(first_row)
+                return True
+            elif event.keyval == Gdk.KEY_Escape:
+                self.omnibox_popover.popdown()
+                return True
+        return False
+
+    def on_url_focus_out(self, widget, event):
+        # We need a slight delay to allow row-activated to fire if the user clicked the popover
+        GLib.timeout_add(200, lambda: self.omnibox_popover.popdown() if not self.url_bar.has_focus() and not self.omnibox_list.has_focus() else False)
+
 
     # ================= BUILT-IN MARKDOWN EDITOR =================
     def on_markdown_message(self, manager, js_result):
@@ -325,34 +400,6 @@ class ZeroDevBrowser(Gtk.Window):
                 del self.named_sessions[name]
                 self.save_named_sessions()
                 if hasattr(self, 'current_webview'): self.current_webview.load_html(self.generate_sessions_html(), "zero://sessions")
-
-    # ================= SMART URL COMPLETION =================
-    def rebuild_url_completion(self):
-        self.url_liststore.clear()
-        added = set()
-        
-        for row in self.bookmarks_list.get_children():
-            url = getattr(row, 'url_data', None)
-            if url and url not in added:
-                self.url_liststore.append([url])
-                added.add(url)
-                
-        for row in self.history_list.get_children():
-            url = getattr(row, 'url_data', None)
-            if url and url not in added:
-                self.url_liststore.append([url])
-                added.add(url)
-
-    def url_completion_match_func(self, completion, key, iter):
-        model = completion.get_model()
-        url = model.get_value(iter, 0)
-        return key.lower() in url.lower() if url else False
-        
-    def on_url_match_selected(self, completion, model, iter):
-        url = model.get_value(iter, 0)
-        self.url_bar.set_text(url)
-        self.on_url_activate(self.url_bar)
-        return True
 
     # ================= HARDWARE MOUSE BUTTONS =================
     def on_mouse_button_press(self, widget, event):
@@ -713,12 +760,12 @@ class ZeroDevBrowser(Gtk.Window):
         msg = js_result.get_js_value().to_string()
         if msg == "clear_history":
             for c in self.history_list.get_children(): self.history_list.remove(c)
-            self.rebuild_url_completion()
+            self.omnibox_urls.clear()
             print("[*] History cleared.")
         elif msg == "clear_bookmarks":
             for c in self.bookmarks_list.get_children(): self.bookmarks_list.remove(c)
             if os.path.exists(self.bm_path): os.remove(self.bm_path)
-            self.rebuild_url_completion()
+            self.omnibox_urls.clear()
             print("[*] Bookmarks cleared.")
         elif msg == "clear_passwords":
             for c in self.passwords_list.get_children(): self.passwords_list.remove(c)
@@ -835,7 +882,7 @@ class ZeroDevBrowser(Gtk.Window):
         row.add(hbox); row.show_all()
         row.url_data = sub_text
         listbox.insert(row, 0)
-        self.rebuild_url_completion()
+        self.omnibox_urls.clear() # Force refresh on next typing
 
     def on_popover_row_clicked(self, listbox, row):
         if hasattr(row, 'url_data'):
