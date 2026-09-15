@@ -6,8 +6,12 @@ import urllib.parse
 from datetime import datetime
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
+gi.require_version('Notify', '0.7')
 from gi.repository import Gtk, Gdk, GLib, Pango
 from gi.repository import WebKit2
+from gi.repository import Notify
+
+Notify.init("Zero Browser")
 
 MARKDOWN_PAGE_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>Zero Markdown</title><style>body { margin: 0; padding: 0; display: flex; height: 100vh; background: #0f1115; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; } .half { width: 50%; height: 100%; overflow-y: auto; padding: 20px; box-sizing: border-box; } #editor { background: #16181D; border-right: 1px solid rgba(255,255,255,0.1); border: none; color: #a0aab5; font-family: monospace; font-size: 14px; resize: none; outline: none; width: 100%; height: calc(100% - 40px); margin-top: 40px; } #preview { padding: 40px; line-height: 1.6; } #preview h1, #preview h2, #preview h3 { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; } #preview code { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; } #preview pre { background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; overflow-x: auto; } .toolbar { position: absolute; top: 0; left: 0; width: 50%; height: 40px; background: #1c1e24; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; padding: 0 20px; box-sizing: border-box; } .btn { background: #4D90FE; color: white; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; } .btn:hover { background: #3b78e7; }</style><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script></head><body><div class="half" style="position:relative;"><div class="toolbar"><button class="btn" onclick="saveMd()">Save File</button></div><textarea id="editor" placeholder="# Start typing Markdown here..."></textarea></div><div class="half" id="preview"></div><script>const editor = document.getElementById('editor'); const preview = document.getElementById('preview'); editor.addEventListener('input', () => { preview.innerHTML = marked.parse(editor.value); }); function saveMd() { window.webkit.messageHandlers.markdown.postMessage('save:' + encodeURIComponent(editor.value)); }</script></body></html>"""
 
@@ -1332,6 +1336,12 @@ class ZeroDevBrowser(Gtk.Window):
             btn_cancel.get_style_context().remove_class("destructive-action")
             btn_cancel.connect("clicked", lambda b: os.system("xdg-open " + os.path.expanduser("~/Downloads")))
             row.is_completed = True
+            
+            try:
+                notification = Notify.Notification.new("Download Complete", filename, "folder-download-symbolic")
+                notification.show()
+            except Exception as e:
+                print("Failed to show notification:", e)
             
         def fail_dl(dl, e):
             lbl_status.set_text("Failed/Cancelled")
