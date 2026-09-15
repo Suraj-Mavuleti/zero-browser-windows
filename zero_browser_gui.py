@@ -455,12 +455,17 @@ class ZeroDevBrowser(Gtk.Window):
                 row = Gtk.ListBoxRow(); row.wid_data = wid
                 hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
                 hbox.set_margin_top(15); hbox.set_margin_bottom(15); hbox.set_margin_start(15)
-                icon = Gtk.Image.new_from_icon_name("text-html-symbolic", Gtk.IconSize.MENU)
+                
+                icon = Gtk.Image.new_from_icon_name("text-html-symbolic", Gtk.IconSize.DND)
+                icon.set_pixel_size(32)
                 vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                lbl1 = Gtk.Label(label=wv.get_title() or "Untitled"); lbl1.set_halign(Gtk.Align.START); lbl1.get_style_context().add_class("bold-label")
+                lbl1 = Gtk.Label(label=wv.get_title() or "Untitled"); lbl1.set_halign(Gtk.Align.START); lbl1.get_style_context().add_class("switcher-title")
                 lbl2 = Gtk.Label(label=wv.get_uri() or ""); lbl2.set_halign(Gtk.Align.START); lbl2.get_style_context().add_class("dim-label"); lbl2.set_ellipsize(Pango.EllipsizeMode.END)
-                vbox.pack_start(lbl1, False, False, 2); vbox.pack_start(lbl2, False, False, 0)
-                hbox.pack_start(icon, False, False, 0); hbox.pack_start(vbox, True, True, 0)
+                lbl_domain = Gtk.Label(label=urllib.parse.urlparse(wv.get_uri() or "").hostname or "local"); lbl_domain.get_style_context().add_class("domain-badge"); lbl_domain.set_halign(Gtk.Align.START)
+                
+                vbox.pack_start(lbl1, False, False, 2); vbox.pack_start(lbl2, False, False, 2); vbox.pack_start(lbl_domain, False, False, 0)
+                hbox.pack_start(icon, False, False, 10); hbox.pack_start(vbox, True, True, 0)
+                
                 row.add(hbox); row.show_all()
                 self.switcher_listbox.add(row)
                 self.switcher_order.append(row)
@@ -1602,6 +1607,8 @@ class ZeroDevBrowser(Gtk.Window):
         css = b'''
             .bold-label { font-weight: bold; }
             .dim-label { color: #888888; font-size: 11px; }
+            .switcher-title { font-weight: bold; font-size: 14px; }
+            .domain-badge { background: rgba(77,144,254,0.2); color: #4d90fe; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
             .vertical-tabs-box { background: #16181D; border-right: 1px solid rgba(255,255,255,0.05); }
             .tabs-header { color: #8090A0; font-size: 11px; font-weight: bold; letter-spacing: 1px; }
             .vertical-tabs-list { background: transparent; }
